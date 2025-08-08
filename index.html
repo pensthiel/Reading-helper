@@ -6,9 +6,10 @@
 <title>Kids Reading Helper</title>
 <style>
   :root{
-    --bg:#ffffff;--fg:#111;--muted:#666;--accent:#2b8a3e;--danger:#c92a2a;--card:#f6f6f7;--highlight:#fff3bf
+    --bg:#ffffff;--fg:#111;--muted:#666;--accent:#2b8a3e;--danger:#c92a2a;--card:#f6f6f7;--highlight:#fff3bf;
+    --col1:#1f7a8c; --col2:#9c27b0; --col3:#ff7043; --col4:#2e7d32; --col5:#1565c0; --col6:#c2185b; --silent:#9aa0a6;
   }
-  .dark{--bg:#0f1115;--fg:#f1f3f5;--muted:#9aa0a6;--accent:#7cd992;--danger:#ff6b6b;--card:#171a21;--highlight:#2a2e39}
+  .dark{--bg:#0f1115;--fg:#f1f3f5;--muted:#9aa0a6;--accent:#7cd992;--danger:#ff6b6b;--card:#171a21;--highlight:#2a2e39;--silent:#6b7280}
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{max-width:980px;margin:0 auto;padding:16px}
@@ -31,7 +32,7 @@
   #reader{display:none;margin-top:8px;border-radius:12px}
   .reader-grid{display:grid;grid-template-columns:1fr;gap:12px}
   @media(min-width:900px){
-    .reader-grid{grid-template-columns:300px 1fr;align-items:start}
+    .reader-grid{grid-template-columns:320px 1fr;align-items:start}
     .reader-controls{position:sticky;top:8px;max-height:80vh;overflow:auto}
   }
   @media(max-width:899px){
@@ -40,10 +41,14 @@
   .reader-controls{display:flex;flex-wrap:wrap;gap:6px;background:var(--card);border-radius:12px}
   .control-row{display:flex;flex-wrap:wrap;gap:6px;width:100%}
   .pill{font-size:12px;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--muted)}
-  .reader-inner{background:var(--card);border-radius:12px;padding:16px;font-size:clamp(22px,6vw,34px);line-height:1.9;letter-spacing:.4px;word-spacing:.25em;user-select:none;-webkit-tap-highlight-color:transparent}
+  .reader-inner{background:var(--card);border-radius:12px;padding:16px;font-size:clamp(22px,6vw,34px);line-height:2;letter-spacing:.4px;word-spacing:.25em;user-select:none;-webkit-tap-highlight-color:transparent}
+  .reader-inner p{margin:0 0 1.2em 0}
+  .reader-inner p.title{font-weight:800;margin-bottom:0.8em}
   .word{padding:4px 6px;border-radius:6px;display:inline-block;margin:0 2px}
   .word.current{background:var(--highlight)}
   .hint{font-size:13px;background:#0008;color:#fff;padding:6px 10px;border-radius:999px;position:sticky;top:52px;align-self:flex-start;display:none}
+  .ph1{color:var(--col1)} .ph2{color:var(--col2)} .ph3{color:var(--col3)} .ph4{color:var(--col4)} .ph5{color:var(--col5)} .ph6{color:var(--col6)}
+  .silent{color:var(--silent)}
   footer{margin:24px 0 40px;text-align:center;font-size:12px;color:var(--muted)}
   .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;padding:2px 6px;border:1px solid var(--muted);border-radius:6px;font-size:12px}
 </style>
@@ -62,8 +67,8 @@
     <h2 style="margin:6px 0 8px;font-size:18px">What this does</h2>
     <p class="note" style="font-size:14px;color:var(--fg)">
       Paste a story or generate one with your GPT key, pick age or reading level, then build the helper.
-      The reading view shows big text. The first word is highlighted. Tap or click anywhere to hear the next word.
-      It advances one word per tap. You can also tap a word if sequence lock is off.
+      The reading view shows big text with real paragraph spacing. The first line is treated as a title and shown bold.
+      Tap or click anywhere to hear the next word. It advances one word per tap. Phonics is highlighted automatically.
     </p>
   </section>
 
@@ -106,10 +111,18 @@
   </section>
 
   <section class="card">
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button id="btnBuildReader" class="btn">🔧 Generate Reading Helper</button>
       <button id="btnStartOver" class="btn ghost sm">🔁 Start over</button>
       <button id="btnResetAll" class="btn danger sm">♻️ Reset all</button>
+      <span class="pill" style="margin-left:auto">
+        Language
+        <select id="langSelect" style="margin-left:6px">
+          <option value="en" selected>English</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+        </select>
+      </span>
     </div>
     <div id="status" class="note" style="margin-top:6px"></div>
 
@@ -144,12 +157,13 @@
 <script>
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
-  const LS = {story:"krh_story",idx:"krh_index",theme:"krh_theme",key:"krh_key",settings:"krh_settings"};
-  const state = {tokens:[],index:0,voices:[]};
+  const LS = {story:"krh_story",idx:"krh_index",theme:"krh_theme",key:"krh_key",settings:"krh_settings",lang:"krh_lang"};
+  const state = {tokens:[],index:0,voices:[],lang:"en"};
 
   // Default example story for first load
   const DEFAULT_STORY = `The Unicorn and the Mermaid
 
+The Unicorn and the Mermaid
 Luna the unicorn trotted to the sea.
 She met Mira the mermaid. "Hi!"
 A tiny crab did a silly dance. Everyone giggled.
@@ -163,9 +177,81 @@ They made shell crowns, then watched pink clouds.
 "Best day," said Luna.
 "See you tomorrow," said Mira. Friends for life.`;
 
+  /* ---------------- Phonics rules (simple, helpful, not exhaustive) ---------------- */
+  const PHONICS = {
+    en: {
+      colored: [
+        {re:/oo/gi, cls:'ph1'}, {re:/ou/gi, cls:'ph2'}, {re:/ee/gi, cls:'ph3'},
+        {re:/th/gi, cls:'ph4'}, {re:/sh/gi, cls:'ph5'}, {re:/ch/gi, cls:'ph6'},
+        {re:/ai/gi, cls:'ph1'}, {re:/oa/gi, cls:'ph2'}, {re:/ow/gi, cls:'ph3'}
+      ],
+      silent: [
+        // final silent e
+        {re:/e\b/gi},
+        // kn- -> silent k
+        {re:/\bk(?=n)/gi},
+        // wr- -> silent w
+        {re:/\bw(?=r)/gi},
+        // -mb end -> silent b
+        {re:/b\b(?<=m b?)/gi}, // tolerant
+        // gh often silent at end or before t
+        {re:/gh\b/gi},
+        {re:/gh(?=t)/gi}
+      ]
+    },
+    fr: {
+      colored: [
+        {re:/ou/gi, cls:'ph1'}, {re:/on/gi, cls:'ph2'}, {re:/an/gi, cls:'ph3'},
+        {re:/en/gi, cls:'ph3'}, {re:/in/gi, cls:'ph4'}, {re:/ai/gi, cls:'ph5'},
+        {re:/eau/gi, cls:'ph6'}, {re:/au/gi, cls:'ph1'}, {re:/eu/gi, cls:'ph2'},
+        {re:/oi/gi, cls:'ph4'}, {re:/ch/gi, cls:'ph5'}, {re:/gn/gi, cls:'ph6'},
+        {re:/ill/gi, cls:'ph3'}
+      ],
+      silent: [
+        // mute h
+        {re:/h/gi},
+        // final mute e
+        {re:/e\b/gi},
+        // common final silent consonants: s, x, t (not always, but helpful)
+        {re:/[sxt]\b/gi},
+        // verb -ent ending (often mute)
+        {re:/ent\b/gi}
+      ]
+    },
+    es: {
+      colored: [
+        {re:/ll/gi, cls:'ph1'}, {re:/rr/gi, cls:'ph2'}, {re:/ch/gi, cls:'ph3'},
+        {re:/ñ/gi, cls:'ph4'}, {re:/gue/gi, cls:'ph5'}, {re:/gui/gi, cls:'ph6'},
+        {re:/que/gi, cls:'ph5'}, {re:/qui/gi, cls:'ph6'}
+      ],
+      silent: [
+        // silent h
+        {re:/h/gi},
+        // silent 'u' in gue/gui/que/qui (not ü)
+        {re:/(g|q)u(?=[ei])/gi}
+      ]
+    }
+  };
+
   // theme
   if(localStorage.getItem(LS.theme)==="dark") document.documentElement.classList.add("dark");
   $("#toggleTheme").addEventListener("click",()=>{document.documentElement.classList.toggle("dark");localStorage.setItem(LS.theme,document.documentElement.classList.contains("dark")?"dark":"light");});
+
+  // language selector
+  (function initLang(){
+    const saved = localStorage.getItem(LS.lang);
+    state.lang = saved || "en";
+    $("#langSelect").value = state.lang;
+    $("#langSelect").addEventListener("change", ()=>{
+      state.lang = $("#langSelect").value || "en";
+      localStorage.setItem(LS.lang, state.lang);
+      // rebuild highlighting if reader is visible
+      if ($("#reader").style.display === "block") {
+        const text = ($("#story").value || "").trim();
+        if (text) buildReader(text, true);
+      }
+    });
+  })();
 
   // mode switch
   $("#mode").addEventListener("change",e=>{
@@ -187,6 +273,7 @@ They made shell crowns, then watched pink clouds.
     if(st.rate) $("#rate").value = st.rate;
     if(st.pitch) $("#pitch").value = st.pitch;
     if(st.enforceSeq !== undefined) $("#enforceSeq").checked = !!st.enforceSeq;
+    if (st.voice) $("#voiceSelect").value = st.voice;
 
     const k = localStorage.getItem(LS.key);
     if (k) { $("#apiKey").value = k; $("#rememberKey").checked = true; }
@@ -203,13 +290,14 @@ They made shell crowns, then watched pink clouds.
   $("#btnGenerateGPT").addEventListener("click",async()=>{
     const key=$("#apiKey").value.trim(); if(!key) return setError("Enter API key.");
     const prompt=($("#prompt").value.trim()||"Write a simple 150 word story for a young child.");
-    const mode=$("#mode").value, age=$("#age").value, level=$("#level").value;
+    const mode=$("#mode").value, age=$("#age").value, level=$("#level").value, lang = $("#langSelect").value || "en";
     const guidance=mode==="age" ? `Target age ${age}. Short sentences. Simple vocabulary.` : `Reading level ${level}. Short sentences. Simple vocabulary.`;
+    const langNote = lang === "fr" ? "Write in French." : lang === "es" ? "Write in Spanish." : "Write in English.";
     try{
       setStatus("Generating...");
       const body={model:"gpt-4o-mini",messages:[
         {role:"system",content:"You write child friendly stories with simple vocabulary and short sentences."},
-        {role:"user",content:`${prompt}\n\nConstraints: ${guidance}\nLength: about 150 words.`}
+        {role:"user",content:`${langNote}\n${prompt}\n\nConstraints: ${guidance}\nLength: about 150 words.`}
       ],temperature:0.8};
       const res=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},body:JSON.stringify(body)});
       if(!res.ok){throw new Error(await res.text());}
@@ -247,40 +335,107 @@ They made shell crowns, then watched pink clouds.
   function populateVoices(){
     if(!("speechSynthesis" in window)) return setError("No TTS support.");
     const sel=$("#voiceSelect"); sel.innerHTML="";
-    const voices=speechSynthesis.getVoices().filter(v=>v.lang?.toLowerCase().startsWith("en"));
+    const voices=speechSynthesis.getVoices().filter(v=>v.lang); // allow all, device decides
     state.voices=voices;
     voices.forEach((v,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=`${v.name} - ${v.lang}`;sel.appendChild(o);});
   }
   if("speechSynthesis" in window){speechSynthesis.onvoiceschanged=populateVoices; populateVoices();}
 
-  function buildReader(text){
+  // Build reader with paragraphs, title, and phonics markup
+  function buildReader(text, keepIndex=false){
     localStorage.setItem(LS.story,text);
-    state.tokens=tokenize(text);
     const container=$("#readerText"); container.innerHTML="";
-    state.tokens.forEach((t,i)=>{const s=document.createElement("span");s.className="word";s.dataset.i=String(i);s.textContent=t.display;container.appendChild(s);container.append(" ");});
+    const paras = splitParagraphs(text);
+    const tokens = [];
+    let globalIndex = 0;
+
+    paras.forEach((para, pi)=>{
+      if (!para.trim()) return;
+      const p = document.createElement("p");
+      const isTitle = (pi===0 && maybeTitle(para));
+      if (isTitle) p.classList.add("title");
+
+      const words = para.split(/\s+/).filter(Boolean);
+      words.forEach((raw,i)=>{
+        const display = raw;
+        const speak = stripPunct(raw);
+        const wordSpan = document.createElement("span");
+        wordSpan.className = "word";
+        wordSpan.dataset.i = String(globalIndex);
+        wordSpan.innerHTML = phonicsMarkup(display, state.lang); // inner pieces colored
+        p.appendChild(wordSpan);
+        p.append(" ");
+        tokens.push({display, speak});
+        globalIndex++;
+      });
+      container.appendChild(p);
+    });
+
+    state.tokens = tokens;
+
     const savedIdx=parseInt(localStorage.getItem(LS.idx)||"0",10);
-    state.index=isNaN(savedIdx)?0:clamp(savedIdx,0,state.tokens.length-1);
+    state.index = keepIndex ? clamp(savedIdx,0,state.tokens.length-1) : (isNaN(savedIdx) ? 0 : clamp(savedIdx,0,state.tokens.length-1));
     updateHighlight();
 
     container.onclick=(e)=>{
       const enforce=$("#enforceSeq").checked;
       $("#tapHint").style.display="none";
+      const target = e.target.closest(".word");
       if(!enforce){
-        const w=e.target.closest(".word");
-        if(w){state.index=clamp(parseInt(w.dataset.i,10),0,state.tokens.length-1);speakCurrent(true);updateHighlight();saveProgress();}
+        if(target){state.index=clamp(parseInt(target.dataset.i,10),0,state.tokens.length-1);speakCurrent(true);updateHighlight();saveProgress();}
         return;
       }
+      // sequence mode: any click advances current word
       step(1);
     };
+
     $("#tapHint").style.display="inline-block";
     setStatus("Reader ready. Tap or click anywhere in the text.");
     $("#progressPill").textContent=`${state.index+1} of ${state.tokens.length}`;
   }
 
-  function tokenize(text){
-    const raw=text.split(/\s+/).filter(Boolean);
-    return raw.map(w=>({display:w,speak:w.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g,"")||w}));
+  function splitParagraphs(text){
+    // Split by blank lines, keep single newlines inside a paragraph
+    return text.replace(/\r/g,'').split(/\n\s*\n/);
   }
+  function maybeTitle(para){
+    // Treat first line as title if short and ends without a period
+    const firstLine = para.split('\n')[0].trim();
+    return firstLine.length <= 60 && !/[.!?…]$/.test(firstLine);
+  }
+
+  function stripPunct(w){ return w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,""); }
+
+  function phonicsMarkup(word, lang){
+    const rules = PHONICS[lang] || PHONICS.en;
+    // Work on the core letters, but keep leading/trailing punctuation around
+    const leading = (word.match(/^[^\p{L}\p{N}]+/u)||[""])[0];
+    const trailing = (word.match(/[^\p{L}\p{N}]+$/u)||[""])[0];
+    let core = word.slice(leading.length, word.length - trailing.length);
+
+    if (!core) return escapeHtml(word);
+
+    // Build a map of segments with tags. We'll convert by walking left->right
+    // 1) mark silent pieces first to avoid double-coloring
+    let html = core;
+    // wrap with temporary markers to avoid nested replacements interfering
+    const wrap = (txt, cls) => `<span class="${cls}">${txt}</span>`;
+
+    // Silent letters (gray)
+    rules.silent.forEach(rule=>{
+      html = html.replace(rule.re, (m)=>wrap(m, 'silent'));
+    });
+
+    // Colored digraphs/trigraphs
+    rules.colored.forEach(rule=>{
+      html = html.replace(rule.re, (m)=>wrap(m, rule.cls));
+    });
+
+    // Return with punctuation reattached
+    return escapeHtml(leading) + html + escapeHtml(trailing);
+  }
+
+  function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 
   function updateHighlight(){
     $$(".word").forEach(el=>el.classList.remove("current"));
@@ -290,14 +445,11 @@ They made shell crowns, then watched pink clouds.
     el?.scrollIntoView({block:"center",behavior:"smooth"});
   }
 
-  function step(dir,manual=false){
+  function step(dir){
     if(!state.tokens.length)return;
     speakCurrent(true,()=>{ 
-      if(dir>=0){ 
-        if(state.index<state.tokens.length-1) state.index++; 
-      } else { 
-        if(state.index>0) state.index--; 
-      } 
+      if(dir>=0){ if(state.index<state.tokens.length-1) state.index++; }
+      else { if(state.index>0) state.index--; }
       updateHighlight(); 
       saveProgress(); 
     });
@@ -310,8 +462,14 @@ They made shell crowns, then watched pink clouds.
     const u=new SpeechSynthesisUtterance(tok.speak);
     u.rate=parseFloat($("#rate").value||"1"); 
     u.pitch=parseFloat($("#pitch").value||"1");
-    const vi=parseInt($("#voiceSelect").value||"-1",10); 
-    if(!isNaN(vi)&&state.voices[vi]) u.voice=state.voices[vi];
+
+    // pick voice by language preference if available
+    const preferredLang = state.lang === "fr" ? "fr" : state.lang === "es" ? "es" : "en";
+    const match = state.voices.find(v => v.lang && v.lang.toLowerCase().startsWith(preferredLang));
+    const vi=parseInt($("#voiceSelect").value||"-1",10);
+    if(!isNaN(vi) && state.voices[vi]) u.voice=state.voices[vi];
+    else if (match) u.voice = match;
+
     u.onend=()=>after&&after(); 
     u.onerror=()=>setError("TTS failed.");
     speechSynthesis.speak(u);
