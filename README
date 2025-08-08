@@ -1,0 +1,99 @@
+Webapp to teach my 6 year old how to read.
+
+🧩 Full Feature List (Finalized)
+
+1. Story Input Options
+	•	📝 Manual Story Input
+	•	Paste or type a story directly into a big text box
+	•	🤖 GPT-Generated Story
+	•	Field to enter OpenAI API key
+	•	Custom prompt box
+	•	Dropdown for age or reading level
+	•	GPT generates a story using that info
+	•	Story auto-filled into the main text box
+
+⸻
+
+2. Reading Level Selector
+	•	Dropdown or radio buttons for:
+	•	📊 Child’s age (e.g. 4 to 10)
+	•	OR 📚 Reading level ("Beginner", "Intermediate", "Advanced")
+	•	Included in GPT prompt if used
+
+⸻
+
+3. Generate Reading Helper
+	•	Big button labeled "🔧 Generate Reading Helper"
+	•	Kicks off:
+	•	Parsing story into words
+	•	Enabling tap/click-to-read mode
+	•	Setting up UI with proper layout
+
+⸻
+
+📖 Reading Helper Mode
+
+4. Kid-Friendly Display
+	•	🧠 Large, readable font with:
+	•	Dyslexia-friendly option (maybe later toggle)
+	•	High contrast
+	•	Generous word and line spacing
+	•	📱 Responsive Layout:
+	•	Fully mobile-friendly (iPhone, iPad)
+	•	Works on tablets and desktop
+	•	Uses tap on touch screens, click on desktop
+
+⸻
+
+5. Tap/Click to Read
+	•	Starts with first word highlighted
+	•	On each tap or click:
+	•	That word is spoken aloud via TTS
+	•	Highlight moves to the next word
+	•	Sequence enforced (can’t skip ahead)
+
+⸻
+
+🗃️ Storage & State
+
+6. Progress Saving (LocalStorage)
+	•	Auto-saves:
+	•	📌 Current story
+	•	✅ Current word index
+	•	On revisit, user can resume from where they left off
+	•	Optional: "🗑️ Start Over" button to clear everything
+
+⸻
+
+🔉 Speech Features
+
+7. Text-to-Speech Integration
+	•	Uses Web Speech API
+	•	Automatically reads the tapped/clicked word
+	•	Optional (later):
+	•	Voice selection
+	•	Pitch/speed tweaks
+
+⸻
+
+🧼 Bonus / UX Features
+
+8. Basic Controls
+	•	🔁 Restart story button (resets to word 1)
+	•	💾 Save story button (in LocalStorage manually if needed)
+	•	🌓 Dark/light mode toggle
+	•	🧹 Clear data/reset app
+
+9. Error Handling
+	•	If API key fails or GPT request errors → show clear message
+	•	If browser doesn’t support TTS → show fallback warning
+
+⸻
+
+✅ Platform Compatibility
+	•	Works on:
+	•	✅ iPhone
+	•	✅ iPad
+	•	✅ Desktop (macOS/Windows/Linux)
+	•	Uses click on mouse, tap on touchscreens
+	•	No backend/server needed -- entirely front-end web app
