@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kids Reading Helper</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --muted: #666;
+      --accent: #2b8a3e;
+      --danger: #c92a2a;
+      --card: #f6f6f7;
+      --highlight: #fff3bf;
+    }
+    .dark {
+      --bg: #0f1115;
+      --fg: #f1f3f5;
+      --muted: #9aa0a6;
+      --accent: #7cd992;
+      --danger: #ff6b6b;
+      --card: #171a21;
+      --highlight: #2a2e39;
+    }
+    html,body { height: 100% }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      line-height: 1.4;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    h1 { font-size: 22px; margin: 8px 0 }
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    label { font-size: 14px; color: var(--muted); display: block; margin: 8px 0 4px }
+    input[type="text"], input[type="password"], textarea, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #0000;
+      outline: none;
+      background: var(--bg);
+      color: var(--fg);
+    }
+    textarea { min-height: 140px; resize: vertical }
+    .row { display: grid; grid-template-columns: 1fr; gap: 10px }
+    @media (min-width: 720px) {
+      .row-2 { grid-template-columns: 1fr 1fr }
+      .row-3 { grid-template-columns: 1fr 1fr 1fr }
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #0000;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      user-select: none;
+    }
+    .btn.secondary { background: #3b82f6 }
+    .btn.ghost { background: #0000; color: var(--fg); border: 1px solid var(--muted) }
+    .btn.danger { background: var(--danger) }
+    .btn:disabled { opacity: .6; cursor: not-allowed }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 }
+    .note { font-size: 12px; color: var(--muted) }
+    .error { color: var(--danger); font-weight: 600 }
+    /* Reader */
+    #reader {
+      display: none;
+      padding: 16px;
+      margin-top: 8px;
+      border-radius: 12px;
+      background: var(--card);
+    }
+    .reader-inner {
+      font-size: clamp(22px, 6vw, 34px);
+      line-height: 1.9;
+      letter-spacing: .4px;
+      word-spacing: .25em;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .word { padding: 4px 6px; border-radius: 6px; display: inline-block; margin: 0 2px }
+    .word.current { background: var(--highlight) }
+    .reader-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px }
+    .pill { font-size: 12px; padding: 6px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--muted); color: var(--fg) }
+    .switch { display: inline-flex; align-items: center; gap: 8px }
+    .space { height: 8px }
+    footer { margin: 24px 0 40px; text-align: center; font-size: 12px; color: var(--muted) }
+    .kbd { font-family: ui-monospace, Menlo, Consolas, monospace; padding: 2px 6px; border: 1px solid var(--muted); border-radius: 6px; font-size: 12px }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Kids Reading Helper</h1>
+      <div class="toolbar">
+        <button id="toggleTheme" class="btn ghost" title="Toggle dark mode">🌙 Theme</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="row row-2">
+        <div>
+          <label for="story">Story text</label>
+          <textarea id="story" placeholder="Paste or write your story here..."></textarea>
+          <div class="toolbar">
+            <button id="btnSaveStory" class="btn ghost">💾 Save story</button>
+            <button id="btnClearStory" class="btn ghost">🧹 Clear</button>
+          </div>
+        </div>
+        <div>
+          <label>Generate with GPT - optional</label>
+          <input id="apiKey" type="password" placeholder="OpenAI API key - not stored unless you choose" autocomplete="off" />
+          <label for="prompt">Prompt</label>
+          <input id="prompt" type="text" placeholder="Write a fun 150 word story about a friendly dragon" />
+          <div class="row row-3">
+            <div>
+              <label for="mode">Age or reading level</label>
+              <select id="mode">
+                <option value="age" selected>Age</option>
+                <option value="level">Reading level</option>
+              </select>
+            </div>
+            <div id="ageWrap">
+              <label for="age">Age</label>
+              <select id="age">
+                <option>4</option><option>5</option><option selected>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+              </select>
+            </div>
+            <div id="levelWrap" style="display:none">
+              <label for="level">Level</label>
+              <select id="level">
+                <option selected>Beginner</option>
+                <option>Intermediate</option>
+                <option>Advanced</option>
+              </select>
+            </div>
+          </div>
+          <div class="toolbar">
+            <label class="switch"><input type="checkbox" id="rememberKey" /> remember key on this device</label>
+            <button id="btnGenerateGPT" class="btn secondary">🤖 Generate story</button>
+          </div>
+          <div class="note">Your key stays in the browser only. Do not use a key you cannot risk.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <button id="btnBuildReader" class="btn">🔧 Generate Reading Helper</button>
+        <button id="btnStartOver" class="btn ghost">🔁 Start over</button>
+        <button id="btnResetAll" class="btn danger">♻️ Reset all</button>
+      </div>
+      <div class="note">Tip: on desktop you can click anywhere in the reader or press <span class="kbd">Space</span> to advance.</div>
+      <div id="status" class="note"></div>
+      <div id="reader">
+        <div class="reader-inner" id="readerText" aria-live="polite"></div>
+        <div class="reader-controls">
+          <button id="btnPrev" class="btn ghost">◀ Prev</button>
+          <button id="btnSpeak" class="btn">🔊 Speak again</button>
+          <button id="btnNext" class="btn ghost">Next ▶</button>
+          <span class="pill" id="progressPill">0 of 0</span>
+          <label class="switch pill">
+            <input type="checkbox" id="enforceSeq" checked />
+            enforce sequence
+          </label>
+          <label class="switch pill">
+            rate <input type="range" id="rate" min="0.6" max="1.4" step="0.05" value="1" />
+          </label>
+          <label class="switch pill">
+            pitch <input type="range" id="pitch" min="0.8" max="1.4" step="0.05" value="1" />
+          </label>
+          <label class="switch pill">
+            voice
+            <select id="voiceSelect"></select>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Client side only. Works on iPhone, iPad, and desktop. Uses Web Speech API for audio.
+    </footer>
+  </div>
+
+  <script>
+    // Simple state
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    const LS = {
+      story: "krh_story",
+      idx: "krh_index",
+      theme: "krh_theme",
+      key: "krh_key",
+      settings: "krh_settings"
+    };
+
+    const state = {
+      tokens: [],
+      index: 0,
+      lastSpoken: "",
+      speaking: false,
+      voices: []
+    };
+
+    // Theme
+    const savedTheme = localStorage.getItem(LS.theme);
+    if (savedTheme === "dark") document.documentElement.classList.add("dark");
+    $("#toggleTheme").addEventListener("click", () => {
+      document.documentElement.classList.toggle("dark");
+      localStorage.setItem(LS.theme, document.documentElement.classList.contains("dark") ? "dark" : "light");
+    });
+
+    // Mode switcher
+    $("#mode").addEventListener("change", e => {
+      const val = e.target.value;
+      $("#ageWrap").style.display = val === "age" ? "" : "none";
+      $("#levelWrap").style.display = val === "level" ? "" : "none";
+    });
+
+    // Load saved story and index
+    (function boot() {
+      const savedStory = localStorage.getItem(LS.story);
+      const savedIdx = parseInt(localStorage.getItem(LS.idx) || "0", 10);
+      const savedSettings = JSON.parse(localStorage.getItem(LS.settings) || "{}");
+      if (savedStory) $("#story").value = savedStory;
+      if (savedSettings.rate) $("#rate").value = savedSettings.rate;
+      if (savedSettings.pitch) $("#pitch").value = savedSettings.pitch;
+      if (savedSettings.enforceSeq !== undefined) $("#enforceSeq").checked = !!savedSettings.enforceSeq;
+      const savedKey = localStorage.getItem(LS.key);
+      if (savedKey) { $("#apiKey").value = savedKey; $("#rememberKey").checked = true; }
+      if (savedStory) {
+        setStatus("Found a saved session. Press Generate Reading Helper to resume at word " + (isNaN(savedIdx) ? 1 : savedIdx + 1) + ".");
+      }
+    })();
+
+    // Save story button
+    $("#btnSaveStory").addEventListener("click", () => {
+      localStorage.setItem(LS.story, $("#story").value.trim());
+      setStatus("Story saved.");
+    });
+    $("#btnClearStory").addEventListener("click", () => { $("#story").value = ""; setStatus("Cleared."); });
+
+    // Remember key checkbox
+    $("#rememberKey").addEventListener("change", e => {
+      if (e.target.checked) {
+        localStorage.setItem(LS.key, $("#apiKey").value);
+      } else {
+        localStorage.removeItem(LS.key);
+      }
+    });
+    $("#apiKey").addEventListener("input", () => {
+      if ($("#rememberKey").checked) localStorage.setItem(LS.key, $("#apiKey").value);
+    });
+
+    // Generate with GPT
+    $("#btnGenerateGPT").addEventListener("click", async () => {
+      const key = $("#apiKey").value.trim();
+      if (!key) return setError("Enter your API key to generate text.");
+      const prompt = $("#prompt").value.trim() || "Write a simple 150 word story for a young child.";
+      const mode = $("#mode").value;
+      const age = $("#age").value;
+      const level = $("#level").value;
+
+      const guidance = mode === "age"
+        ? `Target age ${age}. Use short sentences. Simple vocabulary.`
+        : `Reading level ${level}. Keep vocabulary appropriate. Short sentences.`;
+
+      try {
+        setStatus("Generating story...");
+        const body = {
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "You write child friendly stories with simple vocabulary and short sentences. Avoid proper nouns unless asked." },
+            { role: "user", content: `${prompt}\n\nConstraints: ${guidance}\nLength: about 150 words.` }
+          ],
+          temperature: 0.8
+        };
+
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${key}`
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+          const t = await res.text();
+          throw new Error("OpenAI error: " + t);
+        }
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (!text) throw new Error("No text returned.");
+        $("#story").value = text;
+        localStorage.setItem(LS.story, text);
+        setStatus("Story generated and placed in the box.");
+      } catch (err) {
+        setError(err.message || String(err));
+      }
+    });
+
+    // Build reader
+    $("#btnBuildReader").addEventListener("click", () => {
+      const text = ($("#story").value || "").trim();
+      if (!text) return setError("Add or generate a story first.");
+      buildReader(text);
+      $("#reader").style.display = "block";
+      $("#reader").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    // Start over
+    $("#btnStartOver").addEventListener("click", () => {
+      state.index = 0;
+      updateHighlight();
+      saveProgress();
+      speakCurrent(true);
+    });
+
+    // Reset all
+    $("#btnResetAll").addEventListener("click", () => {
+      if (!confirm("Reset everything - story, progress, and settings")) return;
+      localStorage.removeItem(LS.story);
+      localStorage.removeItem(LS.idx);
+      localStorage.removeItem(LS.settings);
+      // Keep theme and possibly key
+      $("#story").value = "";
+      $("#readerText").innerHTML = "";
+      $("#reader").style.display = "none";
+      setStatus("All cleared.");
+    });
+
+    // Reader controls
+    $("#btnPrev").addEventListener("click", () => step(-1, true));
+    $("#btnNext").addEventListener("click", () => step(1, true));
+    $("#btnSpeak").addEventListener("click", () => speakCurrent(true));
+    $("#rate").addEventListener("input", saveSettings);
+    $("#pitch").addEventListener("input", saveSettings);
+    $("#enforceSeq").addEventListener("change", saveSettings);
+
+    // Keyboard support
+    window.addEventListener("keydown", e => {
+      if ($("#reader").style.display !== "block") return;
+      if (e.code === "Space") { e.preventDefault(); step(1); }
+      if (e.code === "ArrowRight") { e.preventDefault(); step(1, true); }
+      if (e.code === "ArrowLeft") { e.preventDefault(); step(-1, true); }
+    });
+
+    // Voice setup
+    function populateVoices() {
+      state.voices = speechSynthesis.getVoices().filter(v => v.lang?.toLowerCase().startsWith("en"));
+      const sel = $("#voiceSelect");
+      sel.innerHTML = "";
+      state.voices.forEach((v, i) => {
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = `${v.name} - ${v.lang}`;
+        sel.appendChild(opt);
+      });
+    }
+    if ("speechSynthesis" in window) {
+      speechSynthesis.onvoiceschanged = populateVoices;
+      populateVoices();
+    } else {
+      setError("This browser does not support text to speech.");
+    }
+
+    $("#voiceSelect").addEventListener("change", saveSettings);
+
+    // Build reader DOM
+    function buildReader(text) {
+      localStorage.setItem(LS.story, text);
+      state.tokens = tokenize(text);
+      const container = $("#readerText");
+      container.innerHTML = "";
+      state.tokens.forEach((t, i) => {
+        const span = document.createElement("span");
+        span.className = "word";
+        span.dataset.i = String(i);
+        span.textContent = t.display;
+        container.appendChild(span);
+        container.append(" ");
+      });
+      // Restore index if present
+      const savedIdx = parseInt(localStorage.getItem(LS.idx) || "0", 10);
+      state.index = isNaN(savedIdx) ? 0 : clamp(savedIdx, 0, state.tokens.length - 1);
+      updateHighlight();
+
+      // Interaction - tap anywhere to advance if enforceSeq, else tap a word
+      container.addEventListener("click", e => {
+        const enforce = $("#enforceSeq").checked;
+        if (!enforce) {
+          const target = e.target.closest(".word");
+          if (target) {
+            const idx = parseInt(target.dataset.i, 10);
+            state.index = clamp(idx, 0, state.tokens.length - 1);
+            speakCurrent(true);
+            updateHighlight();
+            saveProgress();
+          }
+          return;
+        }
+        step(1); // sequence mode
+      }, { passive: true });
+
+      // First auto speak is optional - we will only highlight
+      setStatus("Reader ready. Tap anywhere inside the text to speak next word.");
+      $("#progressPill").textContent = `${state.index + 1} of ${state.tokens.length}`;
+    }
+
+    // Tokenize into words keeping punctuation for display
+    function tokenize(text) {
+      // Split on whitespace, keep punctuation with the token
+      const raw = text.split(/\s+/).filter(Boolean);
+      return raw.map(w => {
+        // For TTS, strip leading and trailing punctuation
+        const clean = w.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, "");
+        return { display: w, speak: clean || w };
+      });
+    }
+
+    function updateHighlight() {
+      $$(".word").forEach(el => el.classList.remove("current"));
+      const el = $(`.word[data-i="${state.index}"]`);
+      if (el) el.classList.add("current");
+      $("#progressPill").textContent = `${state.index + 1} of ${state.tokens.length}`;
+      // Ensure current word is visible
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+    function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+
+    function step(dir, manual = false) {
+      if (!state.tokens.length) return;
+      // In sequence mode, clicking advances and speaks this current word
+      // Logic: speak current, then move to next
+      speakCurrent(true, () => {
+        if (dir >= 0) {
+          if (state.index < state.tokens.length - 1) state.index++;
+        } else {
+          if (state.index > 0) state.index--;
+        }
+        updateHighlight();
+        saveProgress();
+      }, manual);
+    }
+
+    function speakCurrent(interrupt = false, after = null, manual = false) {
+      if (!("speechSynthesis" in window)) return setError("No TTS support in this browser.");
+      const token = state.tokens[state.index];
+      if (!token) return;
+
+      if (interrupt) speechSynthesis.cancel();
+
+      const u = new SpeechSynthesisUtterance(token.speak);
+      const rate = parseFloat($("#rate").value || "1");
+      const pitch = parseFloat($("#pitch").value || "1");
+      u.rate = clamp(rate, 0.5, 1.5);
+      u.pitch = clamp(pitch, 0.8, 1.5);
+
+      const sel = $("#voiceSelect");
+      const vi = parseInt(sel.value || "-1", 10);
+      if (!isNaN(vi) && state.voices[vi]) u.voice = state.voices[vi];
+
+      state.speaking = true;
+      u.onend = () => { state.speaking = false; if (after) after(); };
+      u.onerror = () => { state.speaking = false; setError("TTS failed to speak."); };
+      speechSynthesis.speak(u);
+      state.lastSpoken = token.speak;
+    }
+
+    function saveProgress() {
+      localStorage.setItem(LS.idx, String(state.index));
+    }
+
+    function saveSettings() {
+      const settings = {
+        rate: $("#rate").value,
+        pitch: $("#pitch").value,
+        enforceSeq: $("#enforceSeq").checked,
+        voice: $("#voiceSelect").value
+      };
+      localStorage.setItem(LS.settings, JSON.stringify(settings));
+    }
+
+    function setStatus(msg) { const s = $("#status"); s.className = "note"; s.textContent = msg; }
+    function setError(msg) { const s = $("#status"); s.className = "note error"; s.textContent = msg; }
+
+    // PWA-lite nicety: prevent iOS zoom on double tap
+    let lastTap = 0;
+    document.addEventListener("touchend", e => {
+      const now = Date.now();
+      if (now - lastTap < 350) e.preventDefault();
+      lastTap = now;
+    }, { passive: false });
+  </script>
+</body>
+</html>
