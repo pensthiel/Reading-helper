@@ -1,176 +1,741 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reading Helper</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Kids Reading Helper</title>
 <style>
-  body { font-family: sans-serif; background: #fafafa; margin: 0; padding: 0; }
-  header { padding: 1em; background: #4a90e2; color: white; }
-  main { padding: 1em; max-width: 800px; margin: auto; }
-  textarea { width: 100%; min-height: 150px; padding: 0.5em; font-size: 1em; }
-  select, input, button { font-size: 1em; margin: 0.25em 0; }
-  #generateBtn { background: #ff9800; color: white; padding: 1em; border: none; font-size: 1.2em; cursor: pointer; display: block; width: 100%; margin: 1em 0; }
-  #generateBtn:hover { background: #e68a00; }
-  .optional-section { border: 2px dashed #ccc; padding: 1em; margin-top: 1em; background: #fff; }
-  .word { font-size: 2em; margin: 0.25em; display: inline-block; cursor: pointer; }
-  .highlight { background: yellow; }
-  .silent { color: gray; }
-  .ph1 { color: #e91e63; }
-  .ph2 { color: #9c27b0; }
-  .ph3 { color: #3f51b5; }
-  .ph4 { color: #03a9f4; }
-  .ph5 { color: #009688; }
-  .ph6 { color: #4caf50; }
-  .paragraph { display: block; margin-bottom: 1em; }
-  #reader { margin-top: 2em; }
+  :root{
+    --bg:#ffffff;--fg:#111;--muted:#666;--accent:#2b8a3e;--danger:#c92a2a;--card:#f6f6f7;--highlight:#fff3bf;
+    --col1:#1f7a8c; --col2:#9c27b0; --col3:#ff7043; --col4:#2e7d32; --col5:#1565c0; --col6:#c2185b; --silent:#9aa0a6;
+  }
+  .dark{--bg:#0f1115;--fg:#f1f3f5;--muted:#9aa0a6;--accent:#7cd992;--danger:#ff6b6b;--card:#171a21;--highlight:#2a2e39;--silent:#6b7280}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:980px;margin:0 auto;padding:16px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  h1{font-size:22px;margin:8px 0}
+  .card{background:var(--card);border-radius:12px;padding:12px;margin:10px 0}
+  label{font-size:14px;color:var(--muted);display:block;margin:8px 0 4px}
+  input[type="text"],input[type="password"],textarea,select{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid #0000;background:var(--bg);color:var(--fg)}
+  textarea{min-height:140px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr;gap:10px}
+  @media(min-width:720px){.row-2{grid-template-columns:1fr 1fr}.row-3{grid-template-columns:1fr 1fr 1fr}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:12px;border:1px solid #0000;background:var(--accent);color:#fff;cursor:pointer;font-weight:800;text-decoration:none;user-select:none}
+  .btn.primary{font-size:18px;padding:14px 18px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+  .btn.ghost{background:#0000;color:var(--fg);border:1px solid var(--muted);font-weight:600}
+  .btn.secondary{background:#3b82f6}
+  .btn.danger{background:var(--danger)}
+  .btn.sm{padding:6px 10px;font-size:14px;border-radius:10px}
+  .note{font-size:12px;color:var(--muted)}
+  .error{color:var(--danger);font-weight:600}
+  details.optional{border:1px dashed var(--muted);border-radius:10px;padding:8px;background:var(--card)}
+  details.optional>summary{cursor:pointer;font-weight:700}
+  /* Reader layout */
+  #reader{display:none;margin-top:8px;border-radius:12px}
+  .reader-grid{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:900px){
+    .reader-grid{grid-template-columns:320px 1fr;align-items:start}
+    .reader-controls{position:sticky;top:8px;max-height:80vh;overflow:auto}
+  }
+  @media(max-width:899px){
+    .reader-controls{position:sticky;top:0;z-index:5;background:var(--card);border-radius:12px;padding:8px}
+  }
+  .reader-controls{display:flex;flex-wrap:wrap;gap:6px;background:var(--card);border-radius:12px}
+  .control-row{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+  .pill{font-size:12px;padding:6px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--muted)}
+  .reader-inner{background:var(--card);border-radius:12px;padding:16px;font-size:clamp(22px,6vw,34px);line-height:2;letter-spacing:.4px;word-spacing:.25em;user-select:none;-webkit-tap-highlight-color:transparent}
+  .reader-inner p{margin:0 0 1.2em 0}
+  .reader-inner p.title{font-weight:800;margin-bottom:0.8em}
+  .word{padding:4px 6px;border-radius:6px;display:inline-block;margin:0 2px}
+  .word.current{background:var(--highlight)}
+  .hint{font-size:13px;background:#0008;color:#fff;padding:6px 10px;border-radius:999px;position:sticky;top:52px;align-self:flex-start;display:none}
+  .ph1{color:var(--col1)} .ph2{color:var(--col2)} .ph3{color:var(--col3)} .ph4{color:var(--col4)} .ph5{color:var(--col5)} .ph6{color:var(--col6)}
+  .silent{color:var(--silent)}
+  footer{margin:24px 0 40px;text-align:center;font-size:12px;color:var(--muted)}
+  .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;padding:2px 6px;border:1px solid var(--muted);border-radius:6px;font-size:12px}
+  .top-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .lang-wrap{display:inline-flex;align-items:center;gap:6px}
+  .lang-wrap select{min-width:120px}
 </style>
 </head>
 <body>
+<div class="wrap">
+  <header>
+    <h1>Kids Reading Helper</h1>
+    <div>
+      <button id="toggleTheme" class="btn ghost">🌙 Theme</button>
+    </div>
+  </header>
 
-<header>
-  <h1>Reading Helper</h1>
-</header>
+  <section class="card">
+    <h2 style="margin:6px 0 8px;font-size:18px">What this does</h2>
+    <p class="note" style="font-size:14px;color:var(--fg)">
+      Paste a story or generate one, pick age or reading level, then build the helper.
+      Big text, real paragraph spacing, title bold. Tap/click moves word by word.
+      Whisper (optional) listens first; if correct, it skips speaking that word.
+      Phonics colors + silent letters come from a per-language dictionary (no generic guesses).
+    </p>
+  </section>
 
-<main>
-  <label for="langSelect">Language:</label>
-  <select id="langSelect">
-    <option value="en">English</option>
-    <option value="fr">Français</option>
-  </select>
+  <section class="card">
+    <div class="row row-2">
+      <div>
+        <label for="story">Story text</label>
+        <textarea id="story" placeholder="Paste or write your story here..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button id="btnSaveStory" class="btn ghost sm">💾 Save story</button>
+          <button id="btnClearStory" class="btn ghost sm">🧹 Clear</button>
+        </div>
+      </div>
 
-  <textarea id="story"></textarea>
-  <button id="generateBtn">🔧 Generate Reading Helper</button>
+      <div>
+        <details class="optional" open>
+          <summary>Optional AI features</summary>
+          <div style="margin-top:8px">
+            <label>OpenAI API key (for story gen & Whisper)</label>
+            <input id="apiKey" type="password" placeholder="OpenAI API key" autocomplete="off" />
 
-  <div class="optional-section">
-    <h3>Optional AI Features</h3>
-    <label for="apiKey">OpenAI API Key:</label>
-    <input type="text" id="apiKey" placeholder="sk-...">
-    <button id="generateStoryBtn">Generate Story with AI</button>
-  </div>
+            <label for="prompt">Story prompt</label>
+            <input id="prompt" type="text" placeholder="Write a fun 150 word story about a friendly dragon" />
 
-  <div id="reader"></div>
-</main>
+            <div class="row row-3">
+              <div>
+                <label for="mode">Age or reading level</label>
+                <select id="mode"><option value="age" selected>Age</option><option value="level">Reading level</option></select>
+              </div>
+              <div id="ageWrap">
+                <label for="age">Age</label>
+                <select id="age"><option>4</option><option>5</option><option selected>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select>
+              </div>
+              <div id="levelWrap" style="display:none">
+                <label for="level">Level</label>
+                <select id="level"><option selected>Beginner</option><option>Intermediate</option><option>Advanced</option></select>
+              </div>
+            </div>
 
-<script>
-let PHONICS = {};
-let storyWords = [];
-let currentWordIndex = 0;
-let voice = null;
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px"><input type="checkbox" id="rememberKey" /> remember key</label>
+              <button id="btnGenerateGPT" class="btn secondary sm">🤖 Generate story</button>
+            </div>
 
-function normalizeWord(w) {
-  return w.toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, ""); // strip accents
-}
+            <hr style="border:none;border-top:1px solid var(--muted);opacity:.3;margin:12px 0">
 
-async function loadPhonics(lang) {
-  if (lang === 'en') {
-    const mod = await import('./phonics-en.js');
-    PHONICS = mod.PHONICS.en;
-  } else if (lang === 'fr') {
-    const mod = await import('./phonics-fr.js');
-    PHONICS = mod.PHONICS.fr;
-  }
-}
+            <label style="font-weight:700">Speech check (Whisper)</label>
+            <label style="display:inline-flex;align-items:center;gap:8px" class="note">
+              <input type="checkbox" id="whisperEnabled"> enable Whisper speech check
+            </label>
+            <div class="note">When enabled, on tap it records briefly and checks the word. If correct, it skips TTS.</div>
 
-function buildReader() {
-  const reader = document.getElementById('reader');
-  reader.innerHTML = '';
-  const text = document.getElementById('story').value.trim();
-  if (!text) return;
+            <hr style="border:none;border-top:1px solid var(--muted);opacity:.3;margin:12px 0">
 
-  // Split into paragraphs on sentence boundaries
-  const paragraphs = text.split(/(?<=[.!?…])\s+/);
-  storyWords = [];
+            <label style="font-weight:700">TTS Engine</label>
+            <div class="row">
+              <label class="pill" style="display:inline-flex;align-items:center;gap:8px">
+                <input type="radio" name="ttsEngine" value="webspeech" checked> Web Speech (browser)
+              </label>
+              <div class="pill" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <label style="display:inline-flex;align-items:center;gap:8px">
+                  <input type="radio" name="ttsEngine" value="openai"> OpenAI TTS
+                </label>
+                <input id="openaiTtsModel" type="text" placeholder="OpenAI TTS model (e.g. tts-1)" />
+                <input id="openaiTtsVoice" type="text" placeholder="OpenAI voice (e.g. alloy)" />
+              </div>
+              <div class="pill" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <label style="display:inline-flex;align-items:center;gap:8px">
+                  <input type="radio" name="ttsEngine" value="eleven"> ElevenLabs
+                </label>
+                <input id="elevenKey" type="password" placeholder="ElevenLabs API Key" />
+                <input id="elevenVoice" type="text" placeholder="Voice ID" />
+              </div>
+              <div class="note">OpenAI/ElevenLabs require keys; leave them blank to use Web Speech.</div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
 
-  paragraphs.forEach(p => {
-    const paraEl = document.createElement('div');
-    paraEl.className = 'paragraph';
-    const words = p.split(/\s+/);
-    words.forEach(w => {
-      const span = document.createElement('span');
-      span.className = 'word';
-      span.innerHTML = applyPhonics(w);
-      span.addEventListener('click', () => speakWord(w));
-      storyWords.push(span);
-      paraEl.appendChild(span);
-    });
-    reader.appendChild(paraEl);
-  });
+  <section class="card">
+    <div class="top-controls">
+      <button id="btnBuildReader" class="btn primary">🔧 Generate Reading Helper</button>
+      <button id="btnStartOver" class="btn ghost sm">🔁 Start over</button>
+      <button id="btnResetAll" class="btn danger sm">♻️ Reset all</button>
+      <span class="pill lang-wrap" style="margin-left:auto">
+        Language
+        <select id="langSelect">
+          <option value="en" selected>English</option>
+          <option value="fr">Français</option>
+        </select>
+      </span>
+    </div>
+    <div id="status" class="note" style="margin-top:6px"></div>
 
-  highlightWord(0);
-}
+    <div id="reader" class="reader-grid">
+      <div>
+        <div class="reader-controls">
+          <div class="control-row">
+            <button id="btnPrev" class="btn ghost sm">◀ Prev</button>
+            <button id="btnSpeak" class="btn sm">🔊 Speak</button>
+            <button id="btnNext" class="btn ghost sm">Next ▶</button>
+            <span class="pill" id="progressPill">0 of 0</span>
+          </div>
+          <div class="control-row">
+            <label class="pill" style="display:inline-flex;align-items:center;gap:6px">
+              <input type="checkbox" id="enforceSeq" checked /> lock sequence
+            </label>
+            <label class="pill">rate <input type="range" id="rate" min="0.6" max="1.4" step="0.05" value="1"></label>
+            <label class="pill">pitch <input type="range" id="pitch" min="0.8" max="1.4" step="0.05" value="1"></label>
+            <label class="pill">voice <select id="voiceSelect"></select></label>
+          </div>
+          <div class="hint" id="tapHint">Tip: tap or click to hear the next word</div>
+        </div>
+      </div>
 
-function applyPhonics(word) {
-  let norm = normalizeWord(word);
-  let chars = word.split('');
+      <div class="reader-inner" id="readerText" aria-live="polite"></div>
+    </div>
+  </section>
 
-  // Silent letters by dictionary
-  if (PHONICS.silentWords[norm]) {
-    PHONICS.silentWords[norm].forEach(i => {
-      if (chars[i]) chars[i] = `<span class="silent">${chars[i]}</span>`;
-    });
-  }
+  <footer>Client-side. EN + FR only. Dictionary-driven silent letters (no generic guesses). Whisper needs an OpenAI key.</footer>
+</div>
 
-  let joined = chars.join('');
+<script type="module">
+  // ------- helpers
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const LS = {story:"krh_story",idx:"krh_index",theme:"krh_theme",key:"krh_key",settings:"krh_settings",lang:"krh_lang"};
+  const state = {tokens:[],index:0,voices:[],lang:"en",lockedVoice:null,mediaStream:null,PHONICS:null};
 
-  // Apply colored phonics patterns
-  PHONICS.colored.forEach(rule => {
-    const regex = new RegExp(rule.match, 'gi');
-    joined = joined.replace(regex, match => `<span class="${rule.cls}">${match}</span>`);
-  });
+  const DEFAULT_STORY = `The Unicorn and the Mermaid
 
-  return joined;
-}
-
-function highlightWord(index) {
-  storyWords.forEach((w, i) => w.classList.toggle('highlight', i === index));
-  currentWordIndex = index;
-}
-
-function speakWord(word) {
-  if (!word) return;
-  const synth = window.speechSynthesis;
-  const utter = new SpeechSynthesisUtterance(word.replace(/[^a-zA-ZÀ-ÿ']/g, ''));
-  if (voice) utter.voice = voice;
-  synth.cancel();
-  synth.speak(utter);
-  if (currentWordIndex < storyWords.length - 1) {
-    highlightWord(currentWordIndex + 1);
-  }
-}
-
-document.getElementById('generateBtn').addEventListener('click', buildReader);
-document.getElementById('langSelect').addEventListener('change', async (e) => {
-  await loadPhonics(e.target.value);
-});
-
-window.addEventListener('load', async () => {
-  await loadPhonics('en');
-  // Default example story
-  const defaultStory = `The Unicorn and the Mermaid
-
+The Unicorn and the Mermaid
 Luna the unicorn trotted to the sea.
 She met Mira the mermaid. "Hi!"
 A tiny crab did a silly dance. Everyone giggled.
 Luna made a sand cake with shiny shells on top.
 The cake wobbled, but it looked yummy.
+
 A little sea snail clapped from a rock.
 A gull swooped by and splashed in the water.
 They shared the cake. The crab had a tiny bite.
 "It's delicious!" said Mira. Luna laughed.
 They made shell crowns, then watched pink clouds.
 "Best day," said Luna.
-"See you tomorrow," said Mira. Friends for life.`;
-  document.getElementById('story').value = defaultStory;
+"See you tomorrow," said Mira. Friends for life.`
+  .replace(/^The Unicorn and the Mermaid\s*\n/i, "The Unicorn and the Mermaid\n");
 
-  // Preload a voice
-  window.speechSynthesis.onvoiceschanged = () => {
-    const voices = window.speechSynthesis.getVoices();
-    voice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-  };
-});
+  // theme
+  if(localStorage.getItem(LS.theme)==="dark") document.documentElement.classList.add("dark");
+  $("#toggleTheme").addEventListener("click",()=>{document.documentElement.classList.toggle("dark");localStorage.setItem(LS.theme,document.documentElement.classList.contains("dark")?"dark":"light");});
+
+  // language + lazy-load dictionary
+  (async function initLang(){
+    const saved = localStorage.getItem(LS.lang);
+    state.lang = saved || "en";
+    $("#langSelect").value = state.lang;
+    await loadPhonics(state.lang);
+    $("#langSelect").addEventListener("change", async ()=>{
+      state.lang = $("#langSelect").value || "en";
+      localStorage.setItem(LS.lang, state.lang);
+      await loadPhonics(state.lang);
+      if ($("#reader").style.display === "block") {
+        const text = ($("#story").value || "").trim();
+        if (text) buildReader(text, true);
+      }
+    });
+  })();
+
+  async function loadPhonics(lang){
+    if (lang === "fr") {
+      const mod = await import('./phonics-fr.js');
+      state.PHONICS = mod.PHONICS.fr;
+    } else {
+      const mod = await import('./phonics-en.js');
+      state.PHONICS = mod.PHONICS.en;
+    }
+  }
+
+  // mode switch
+  $("#mode").addEventListener("change",e=>{
+    const v=e.target.value;
+    $("#ageWrap").style.display=v==="age"?"":"none";
+    $("#levelWrap").style.display=v==="level"?"":"none";
+  });
+
+  // boot
+  (function(){
+    let s = localStorage.getItem(LS.story);
+    if (!s || !s.trim()) { s = DEFAULT_STORY; localStorage.setItem(LS.story, s); }
+    $("#story").value = s;
+
+    const st = JSON.parse(localStorage.getItem(LS.settings) || "{}");
+    if(st.rate) $("#rate").value = st.rate;
+    if(st.pitch) $("#pitch").value = st.pitch;
+    if(st.enforceSeq !== undefined) $("#enforceSeq").checked = !!st.enforceSeq;
+    if (st.voice) $("#voiceSelect").value = st.voice;
+    if (st.whisper) $("#whisperEnabled").checked = !!st.whisper;
+    if (st.openaiTtsModel) $("#openaiTtsModel").value = st.openaiTtsModel;
+    if (st.openaiTtsVoice) $("#openaiTtsVoice").value = st.openaiTtsVoice;
+    if (st.elevenKey) $("#elevenKey").value = st.elevenKey;
+    if (st.elevenVoice) $("#elevenVoice").value = st.elevenVoice;
+
+    const k = localStorage.getItem(LS.key);
+    if (k) { $("#apiKey").value = k; $("#rememberKey").checked = true; }
+
+    setStatus("Story ready. Tap Generate Reading Helper to start.");
+  })();
+
+  // remember key
+  $("#rememberKey").addEventListener("change",e=>{ if(e.target.checked){localStorage.setItem(LS.key,$("#apiKey").value);} else {localStorage.removeItem(LS.key);} });
+  $("#apiKey").addEventListener("input",()=>{ if($("#rememberKey").checked) localStorage.setItem(LS.key,$("#apiKey").value); });
+
+  // save/reset story
+  $("#btnSaveStory").addEventListener("click",()=>{localStorage.setItem(LS.story,$("#story").value.trim());setStatus("Story saved.");});
+  $("#btnClearStory").addEventListener("click",()=>{$("#story").value="";setStatus("Cleared.");});
+
+  // TTS engine selection
+  $$('input[name="ttsEngine"]').forEach(r=>r.addEventListener('change',saveSettings));
+  $("#openaiTtsModel").addEventListener("change",saveSettings);
+  $("#openaiTtsVoice").addEventListener("change",saveSettings);
+  $("#elevenKey").addEventListener("change",saveSettings);
+  $("#elevenVoice").addEventListener("change",saveSettings);
+  $("#whisperEnabled").addEventListener("change", async (e)=>{
+    saveSettings();
+    if (e.target.checked) {
+      try {
+        await navigator.mediaDevices.getUserMedia({audio:true});
+        setStatus("Mic ready for Whisper.");
+      } catch {
+        e.target.checked = false;
+        saveSettings();
+        setError("Mic permission denied.");
+      }
+    }
+  });
+
+  // GPT story gen
+  $("#btnGenerateGPT").addEventListener("click",async()=>{
+    const key=$("#apiKey").value.trim(); if(!key) return setError("Enter API key.");
+    const prompt=($("#prompt").value.trim()||"Write a simple 150 word story for a young child.");
+    const mode=$("#mode").value, age=$("#age").value, level=$("#level").value, lang = $("#langSelect").value || "en";
+    const guidance=mode==="age" ? `Target age ${age}. Short sentences. Simple vocabulary.` : `Reading level ${level}. Short sentences. Simple vocabulary.`;
+    const langNote = lang === "fr" ? "Write in French." : "Write in English.";
+    try{
+      setStatus("Generating...");
+      const body={model:"gpt-4o-mini",messages:[
+        {role:"system",content:"You write child friendly stories with simple vocabulary and short sentences."},
+        {role:"user",content:`${langNote}\n${prompt}\n\nConstraints: ${guidance}\nLength: about 150 words.`}
+      ],temperature:0.8};
+      const res=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${key}`},body:JSON.stringify(body)});
+      if(!res.ok){throw new Error(await res.text());}
+      const data=await res.json();
+      const text=data.choices?.[0]?.message?.content?.trim(); if(!text) throw new Error("No text returned.");
+      $("#story").value=text; localStorage.setItem(LS.story,text); setStatus("Story generated.");
+    }catch(err){setError(err.message||String(err));}
+  });
+
+  // Build reader
+  $("#btnBuildReader").addEventListener("click",()=>{
+    const text=($("#story").value||"").trim(); if(!text) return setError("Add or generate a story first.");
+    buildReader(text);
+    $("#reader").style.display="block";
+    $("#reader").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+
+  $("#btnStartOver").addEventListener("click",()=>{state.index=0;updateHighlight();saveProgress();});
+  $("#btnResetAll").addEventListener("click",()=>{if(!confirm("Reset everything"))return;
+    localStorage.removeItem(LS.story);localStorage.removeItem(LS.idx);localStorage.removeItem(LS.settings);
+    $("#story").value="";$("#readerText").innerHTML="";$("#reader").style.display="none";setStatus("All cleared.");
+  });
+
+  $("#btnPrev").addEventListener("click",()=>manualStep(-1));
+  $("#btnNext").addEventListener("click",()=>manualStep(1));
+  $("#btnSpeak").addEventListener("click",()=>speakWord(state.tokens[state.index]?.speak, ()=>{}));
+
+  $("#rate").addEventListener("input",saveSettings);
+  $("#pitch").addEventListener("input",saveSettings);
+  $("#enforceSeq").addEventListener("change",saveSettings);
+  $("#voiceSelect").addEventListener("change",()=>{
+    const vi=parseInt($("#voiceSelect").value||"-1",10);
+    state.lockedVoice = (!isNaN(vi) && state.voices[vi]) ? state.voices[vi] : null;
+    saveSettings();
+  });
+
+  window.addEventListener("keydown",e=>{
+    if($("#reader").style.display!=="block")return;
+    if(e.code==="Space"){e.preventDefault();advanceWithCheck();}
+    if(e.code==="ArrowRight"){e.preventDefault();manualStep(1);}
+    if(e.code==="ArrowLeft"){e.preventDefault();manualStep(-1);}
+  });
+
+  // voices (lock chosen voice)
+  function populateVoices(){
+    if(!("speechSynthesis" in window)) return;
+    const sel=$("#voiceSelect"); sel.innerHTML="";
+    const voices=speechSynthesis.getVoices().filter(v=>v.lang);
+    state.voices=voices;
+    voices.forEach((v,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=`${v.name} - ${v.lang}`;sel.appendChild(o);});
+    if(!state.lockedVoice){
+      const preferred = (state.lang==="fr"?"fr":"en");
+      const m = voices.find(v=>v.lang && v.lang.toLowerCase().startsWith(preferred));
+      state.lockedVoice = m || voices[0] || null;
+      if (state.lockedVoice) {
+        const idx = voices.indexOf(state.lockedVoice);
+        if (idx >= 0) $("#voiceSelect").value = String(idx);
+      }
+    }
+  }
+  if("speechSynthesis" in window){speechSynthesis.onvoiceschanged=populateVoices; populateVoices();}
+
+  // ---------------- Reader build with sentence breaks + phonics markup (dictionary-driven) ----------------
+  function buildReader(text, keepIndex=false){
+    localStorage.setItem(LS.story,text);
+    const container=$("#readerText"); container.innerHTML="";
+    const paras = splitParagraphs(text);
+    const tokens = []; let globalIndex = 0;
+
+    paras.forEach((para, pi)=>{
+      if (!para.trim()) return;
+      const p = document.createElement("p");
+      const isTitle = (pi===0 && maybeTitle(para));
+      if (isTitle) p.classList.add("title");
+
+      const sentences = splitSentences(para);
+      sentences.forEach((sent, si)=>{
+        const words = sent.split(/\s+/).filter(Boolean);
+        words.forEach((raw)=>{
+          const display = raw;
+          const speak = stripPunct(raw);
+          const wordSpan = document.createElement("span");
+          wordSpan.className = "word";
+          wordSpan.dataset.i = String(globalIndex);
+          wordSpan.innerHTML = phonicsMarkup(display);
+          p.appendChild(wordSpan);
+          p.append(" ");
+          tokens.push({display, speak});
+          globalIndex++;
+        });
+        if (si < sentences.length - 1) p.appendChild(document.createElement("br"));
+      });
+
+      container.appendChild(p);
+    });
+
+    state.tokens = tokens;
+    const savedIdx=parseInt(localStorage.getItem(LS.idx)||"0",10);
+    state.index = keepIndex ? clamp(savedIdx,0,state.tokens.length-1) : (isNaN(savedIdx) ? 0 : clamp(savedIdx,0,state.tokens.length-1));
+    updateHighlight();
+
+    container.onclick=(e)=>{
+      const enforce=$("#enforceSeq").checked;
+      $("#tapHint").style.display="none";
+      if(!enforce){
+        const w=e.target.closest(".word");
+        if(w){state.index=clamp(parseInt(w.dataset.i,10),0,state.tokens.length-1);advanceWithCheck(true);}
+        return;
+      }
+      advanceWithCheck();
+    };
+
+    $("#tapHint").style.display="inline-block";
+    setStatus("Reader ready. Tap or click anywhere in the text.");
+    $("#progressPill").textContent=`${state.index+1} of ${state.tokens.length}`;
+  }
+
+  function splitParagraphs(text){ return text.replace(/\r/g,'').split(/\n\s*\n/); }
+  function maybeTitle(para){
+    const firstLine = para.split('\n')[0].trim();
+    return firstLine.length <= 60 && !/[.!?…]$/.test(firstLine);
+  }
+  function splitSentences(para){
+    const out=[]; let cur="";
+    for (let i=0;i<para.length;i++){
+      const ch = para[i];
+      cur += ch;
+      if (/[.!?]/.test(ch) || ch === "…") {
+        const next = para[i+1] || "";
+        if (next === " " || next === "\n" || i === para.length-1) {
+          out.push(cur.trim()); cur = "";
+        }
+      }
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+  function stripPunct(w){
+    const core = w.replace(/^[^\p{L}\p{N}']+|[^\p{L}\p{N}']+$/gu,"");
+    return core.replace(/(?!^)[^\p{L}\p{N}']+/gu,"");
+  }
+
+  // --- phonics markup: only per-word silent dict (no generic silent patterns)
+  function phonicsMarkup(word){
+    const rules = state.PHONICS; // { colored: [...], silentWords: {...} }
+    const leading = (word.match(/^[^\p{L}\p{N}]+/u)||[""])[0];
+    const trailing = (word.match(/[^\p{L}\p{N}]+$/u)||[""])[0];
+    const core = word.slice(leading.length, word.length - trailing.length);
+    if (!core) return escapeHtml(word);
+
+    const chars = Array.from(core);
+
+    // Build letter-only normalization for dictionary key
+    const letterIdx = [];
+    let normLetters = "";
+    for (let i=0;i<chars.length;i++){
+      const ch = chars[i];
+      if (/\p{L}/u.test(ch)) {
+        const base = ch.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+        letterIdx.push(i);
+        normLetters += base;
+      }
+    }
+    const key = normLetters;
+
+    // Silent letters by explicit dictionary only
+    const silentSet = new Set();
+    const entry = rules?.silentWords?.[key];
+    if (entry){
+      if (Array.isArray(entry)){ // positions in the letters-only string
+        entry.forEach(pos=>{
+          const orig = letterIdx[pos];
+          if (orig!=null) silentSet.add(orig);
+        });
+      } else if (typeof entry === "string"){ // mask string equal to letters-only (gray them all)
+        // mark all positions covered by mask
+        for(let i=0;i<entry.length;i++){
+          const orig = letterIdx[i];
+          if (orig!=null) silentSet.add(orig);
+        }
+      }
+    }
+
+    // Colored phonics digraphs/trigraphs
+    const colorPlan = new Array(chars.length).fill(null);
+    const patterns = (rules?.colored||[]).slice().sort((a,b)=>(b.match.length - a.match.length));
+    for (let i=0;i<chars.length;i++){
+      for (const pat of patterns){
+        const ml = pat.match.length;
+        if (i+ml>chars.length) continue;
+        const slice = chars.slice(i,i+ml).join("");
+        const norm = slice.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+        if (norm === pat.match){
+          for (let k=0;k<ml;k++){
+            if (colorPlan[i+k]==null) colorPlan[i+k] = pat.cls;
+          }
+        }
+      }
+    }
+
+    // Build HTML
+    let html = "";
+    for (let i=0;i<chars.length;i++){
+      const ch = chars[i];
+      const cls = silentSet.has(i) ? "silent" : colorPlan[i];
+      if (cls) html += `<span class="${cls}">${escapeHtml(ch)}</span>`;
+      else html += escapeHtml(ch);
+    }
+    return escapeHtml(leading) + html + escapeHtml(trailing);
+  }
+
+  function escapeHtml(s){ return s.replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+  function updateHighlight(){
+    $$(".word").forEach(el=>el.classList.remove("current"));
+    const el=$(`.word[data-i="${state.index}"]`);
+    if(el) el.classList.add("current");
+    $("#progressPill").textContent=`${state.index+1} of ${state.tokens.length}`;
+    el?.scrollIntoView({block:"center",behavior:"smooth"});
+  }
+
+  function manualStep(dir){
+    if(!state.tokens.length)return;
+    if(dir>0){ advanceWithCheck(); }
+    else{
+      if(state.index>0){ state.index--; updateHighlight(); saveProgress(); }
+    }
+  }
+
+  async function advanceWithCheck(){
+    const token = state.tokens[state.index]; if(!token) return;
+    const whisperOn = $("#whisperEnabled").checked;
+    if(whisperOn){
+      try{
+        const ok = await checkPronunciation(token.speak);
+        if(ok){ stepForward(); return; }
+      }catch(err){ setError("Whisper check failed. Speaking the word."); }
+    }
+    speakWord(token.speak, stepForward);
+  }
+
+  function stepForward(){
+    if(state.index < state.tokens.length-1) state.index++;
+    updateHighlight(); saveProgress();
+  }
+
+  // ---------- TTS ----------
+  function pickPreferredLang(){ return state.lang === "fr" ? "fr" : "en"; }
+  function speakWord(text, after){
+    const engine = document.querySelector('input[name="ttsEngine"]:checked').value;
+    if(engine === 'openai') return speakWithOpenAI(text, after);
+    if(engine === 'eleven') return speakWithElevenLabs(text, after);
+    return speakWithWebSpeech(text, after);
+  }
+  function speakWithWebSpeech(text, after){
+    if(!("speechSynthesis" in window)) { setError("No Web Speech support."); return; }
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.rate=parseFloat($("#rate").value||"1"); u.pitch=parseFloat($("#pitch").value||"1");
+    if (!state.lockedVoice) {
+      const preferred = pickPreferredLang();
+      const m = state.voices.find(v => v.lang && v.lang.toLowerCase().startsWith(preferred));
+      state.lockedVoice = m || state.voices[0] || null;
+    }
+    if (state.lockedVoice) u.voice = state.lockedVoice;
+    u.onend=()=>after&&after(); u.onerror=()=>setError("TTS failed.");
+    speechSynthesis.speak(u);
+  }
+  async function speakWithOpenAI(text, after){
+    const key=$("#apiKey").value.trim(); if(!key){ setError("OpenAI key required for OpenAI TTS."); return speakWithWebSpeech(text, after); }
+    const model = ($("#openaiTtsModel").value.trim() || "tts-1");
+    const voice = ($("#openaiTtsVoice").value.trim() || "alloy");
+    try{
+      setStatus("OpenAI TTS…");
+      const res = await fetch("https://api.openai.com/v1/audio/speech", {
+        method:"POST",
+        headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},
+        body:JSON.stringify({model, voice, input:text})
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = ()=>{ URL.revokeObjectURL(url); after&&after(); };
+      audio.onerror = ()=>{ setError("OpenAI TTS audio failed."); };
+      audio.play();
+    }catch(e){ setError("OpenAI TTS failed. Using Web Speech."); speakWithWebSpeech(text, after); }
+  }
+  async function speakWithElevenLabs(text, after){
+    const key=$("#elevenKey").value.trim(); const voice=$("#elevenVoice").value.trim();
+    if(!key || !voice){ setError("ElevenLabs key and voice required."); return speakWithWebSpeech(text, after); }
+    try{
+      setStatus("ElevenLabs TTS…");
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}`, {
+        method:"POST",
+        headers:{ "xi-api-key": key, "Content-Type":"application/json" },
+        body: JSON.stringify({text, model_id:"eleven_monolingual_v1", voice_settings:{stability:0.5,similarity_boost:0.7}})
+      });
+      if(!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = ()=>{ URL.revokeObjectURL(url); after&&after(); };
+      audio.onerror = ()=>{ setError("ElevenLabs audio failed."); };
+      audio.play();
+    }catch(e){ setError("ElevenLabs TTS failed. Using Web Speech."); speakWithWebSpeech(text, after); }
+  }
+
+  // Whisper speech check (OpenAI)
+  async function checkPronunciation(expected){
+    const key = $("#apiKey").value.trim();
+    if(!key){ setError("No API key for Whisper."); return false; }
+    const stream = await getMic(); if(!stream){ setError("Mic permission denied."); return false; }
+    setStatus('Listening… say: "'+expected+'"');
+    const blob = await recordShort(stream, 1600);
+    setStatus("Checking…");
+    try{
+      const form = new FormData();
+      form.append("file", new File([blob], "speech.webm", {type: blob.type || "audio/webm"}));
+      form.append("model", "whisper-1");
+      form.append("language", pickPreferredLang());
+      const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${key}` },
+        body: form
+      });
+      if(!res.ok){ throw new Error(await res.text()); }
+      const data = await res.json();
+      const heard = (data.text||"").trim();
+      const ok = fuzzyMatch(expected, heard);
+      setStatus(ok ? `✔ Heard: "${heard}"` : `✖ Heard: "${heard}"`);
+      return ok;
+    }catch(err){
+      setError("Whisper error: " + (err.message||String(err)));
+      return false;
+    }
+  }
+
+  function normalize(s){
+    return (s||"")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .replace(/[^a-z0-9]/g,"");
+  }
+  function fuzzyMatch(expected, heard){
+    const a = normalize(expected);
+    const b = normalize(heard);
+    if(!a || !b) return false;
+    if(a === b) return true;
+    if(b.includes(a) || a.includes(b)) return true;
+    return lev(a,b) <= 1;
+  }
+  function lev(a,b){
+    const m=a.length,n=b.length;
+    const dp=Array.from({length:m+1},(_,i)=>Array(n+1).fill(0));
+    for(let i=0;i<=m;i++) dp[i][0]=i;
+    for(let j=0;j<=n;j++) dp[0][j]=j;
+    for(let i=1;i<=m;i++){
+      for(let j=1;j<=n;j++){
+        const cost = a[i-1]===b[j-1]?0:1;
+        dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
+      }
+    }
+    return dp[m][n];
+  }
+
+  async function getMic(){
+    try{
+      if(!state.mediaStream){
+        state.mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
+      }
+      return state.mediaStream;
+    }catch(e){ return null; }
+  }
+  function recordShort(stream, durMs=1500){
+    return new Promise((resolve,reject)=>{
+      const rec = new MediaRecorder(stream);
+      const chunks = [];
+      rec.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+      rec.onerror = e=>reject(e.error||new Error("Recorder error"));
+      rec.onstop = ()=> resolve(new Blob(chunks, {type: chunks[0]?.type || "audio/webm"}));
+      rec.start();
+      setTimeout(()=>{ try{ rec.stop(); }catch{} }, durMs);
+    });
+  }
+
+  function saveProgress(){localStorage.setItem(LS.idx,String(state.index));}
+  function saveSettings(){
+    localStorage.setItem(LS.settings, JSON.stringify({
+      rate:$("#rate").value,
+      pitch:$("#pitch").value,
+      enforceSeq:$("#enforceSeq").checked,
+      voice:$("#voiceSelect").value,
+      whisper: $("#whisperEnabled").checked,
+      openaiTtsModel: $("#openaiTtsModel").value,
+      openaiTtsVoice: $("#openaiTtsVoice").value,
+      elevenKey: $("#elevenKey").value,
+      elevenVoice: $("#elevenVoice").value
+    }));
+  }
+  function setStatus(m){const s=$("#status"); s.className="note"; s.textContent=m;}
+  function setError(m){const s=$("#status"); s.className="note error"; s.textContent=m;}
+  function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
+
+  // prevent iOS double tap zoom
+  let lastTap=0; 
+  document.addEventListener("touchend",e=>{const now=Date.now(); if(now-lastTap<350) e.preventDefault(); lastTap=now;},{passive:false});
+
+  // preload voices early
+  if("speechSynthesis" in window){speechSynthesis.onvoiceschanged=populateVoices; populateVoices();}
+
 </script>
 </body>
 </html>
