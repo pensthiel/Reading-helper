@@ -1,57 +1,73 @@
 export const PHONICS = {
   fr: {
-    colored: [
-      { match: "ou", cls: "ph1" },
-      { match: "on", cls: "ph2" },
-      { match: "an", cls: "ph3" },
-      { match: "in", cls: "ph4" },
-      { match: "ai", cls: "ph5" },
-      { match: "oi", cls: "ph6" }
-    ],
+    // Phoneme groups: sound symbol -> array of grapheme patterns.
+    // These will be assigned colors dynamically (same sound => same color).
+    soundGroups: {
+      "u": ["ou"],
+      "ɔ̃": ["on"],
+      "ɑ̃": ["an", "en"],
+      "ɛ̃": ["in", "im"],
+      "e": ["ai", "é", "er"],
+      "wa": ["oi"],
+      "o": ["eau", "eaux", "au", "aux"],
+      "œ̃": ["un", "um"],
+      "f": ["ph"],
+      "ɲ": ["gn"],
+      "ij": ["ill"],
+      "j": ["ge", "gi"],
+      "ʃ": ["ch"],
+      "s": ["ss"],
+      "k": ["qu", "c"],
+      "ɡ": ["gu"],
+      "y": ["y"],
+      "ø": ["eu", "oeu"],
+      "ə": ["e"],
+      "ɛ": ["ai", "ei"],
+      "oɛ": ["oi"]
+    },
     silentWords: {
-      // H muet
-      "homme":[0],"histoire":[0],"hiver":[0],"heure":[0],"haut":[0],
-      "honte":[0],"habiter":[0],"hôpital":[0],"héros":[0],"huit":[0],
-      // Consonne finale muette
-      "grand":[4],"petit":[4],"froid":[4],"vent":[3],"chant":[4],
-      "long":[3],"court":[4],"haut":[3],"fort":[3],"grand":[4],
-      // ent muet (verbes fréquents)
-      "mangent":[5,6,7],"parlent":[5,6,7],"aiment":[5,6,7],"vivent":[5,6,7],
-      "prennent":[6,7,8],"finissent":[6,7,8],"donnent":[5,6,7],"trouvent":[6,7,8],
-      "restent":[5,6,7],"marchent":[6,7,8],
-      // p muet
-      "beaucoup":[6,7],"temps":[4],"compter":[4],"rompt":[3],"prompt":[4],
-      // s muet
-      "fils":[3],"tous":[3],"plus":[3],"moins":[4],"gris":[3],
-      // x muet
-      "deux":[4],"heureux":[5],"vieux":[4],"cheveux":[6],"doux":[3],
-      // t muet
-      "faut":[4],"exact":[5],"respect":[6],"aspect":[5],"est":[3],
-      // e muet final
-      "jeune":[5],"bleue":[4],"verte":[4],"belle":[4],"noire":[4],
-      "petite":[6],"grande":[6],"chaude":[5],"froide":[5],"claire":[5],
-      // Autres fréquents avec lettres muettes
-      "femme":[4],"monsieur":[6,7],"madame":[6],"beaux":[4],
-      "oeuf":[3],"oeufs":[3],"soeur":[3],"coeur":[3],
-      "doigt":[3],"doigts":[3],"poids":[3],"faon":[3],"paon":[3],
-      "tabac":[4],"estomac":[6],"secours":[6],"beurre":[6],"neuf":[3],
-      "oeuvre":[3],"plomb":[4],"plombe":[4],"plombé":[4],"plombs":[4],
-      "lait":[3],"laits":[3],"mets":[3],"met":[3],"fait":[3],
-      "fais":[3],"faites":[3],"sait":[3],"tais":[3],"taisez":[3],
-      "nez":[2],"nezs":[2],"riz":[2],"rizs":[2],"gaz":[2],
-      "nez":[2],"nezs":[2],"nez":[2],"nezs":[2],
-      "parfum":[6],"parfums":[6],"bal":[3],"bals":[3],"chef":[3],
-      "chefs":[3],"œil":[3],"yeux":[3],"oeil":[3],"yeux":[3],
-      "noix":[3],"noixs":[3],"poix":[3],"choix":[4],"choixs":[4],
-      "croix":[4],"croixs":[4],"voix":[3],"voixs":[3],
-      "paix":[3],"paixs":[3],"prix":[3],"prixs":[3],
-      "corps":[4],"corpss":[4],"camp":[3],"camps":[3],"champ":[4],
-      "champs":[4],"temps":[4],"printemps":[7],"dix":[2],"dixs":[2],
-      "six":[2],"sixs":[2],"sept":[3],"septembre":[3],
-      "juin":[3],"août":[2,3],"saint":[4],"sainte":[4],
-      "faim":[3],"faims":[3],"pain":[3],"pains":[3],"main":[3],
-      "mains":[3],"gros":[3],"grosses":[3],"petits":[4],
-      "grands":[4],"petites":[4],"grandes":[4]
+  // NOTE: indices are 0-based positions within the letters-only form (accents stripped).
+  // Core very high-frequency function words / pronouns with a single silent final consonant
+  "ils":[2],"elles":[4],"nous":[3],"vous":[3],"dans":[3],"sans":[3],
+  "sont":[3],"ont":[2],"est":[2],"es":[1],"sommes":[5],"etes":[3], // êtes -> etes
+  "suis":[3],"fait":[3],"fais":[3],"sait":[3],"mais":[3],"quand":[4],"dont":[3],
+  // H muet (initial h not pronounced)
+  "homme":[0],"histoire":[0],"hiver":[0],"heure":[0],"honte":[0],"habiter":[0],"heros":[0],"huit":[0],
+  // Common final silent consonants
+  "grand":[4],"petit":[4],"petits":[5],"grands":[5],
+  "froid":[4],"vent":[3],"chant":[4],"long":[3],"longs":[3,4],"court":[4],"fort":[3],
+  "beau":[3],"beaux":[4],"vieux":[4],"doux":[3],"faux":[3],
+  // Nasal + final consonant dropped
+  "pain":[3],"pains":[3],"main":[3],"mains":[3],"faim":[3],"faims":[3],"saint":[4],"sainte":[4],"juin":[3],
+  // Final -t silent
+  "faut":[3],"tout":[3],"haut":[3],"exact":[4],"aspect":[5],"respect":[6],
+  // Verb endings -ent (all three letters silent)
+  "mangent":[4,5,6],"parlent":[4,5,6],"aiment":[4,5,6],"vivent":[4,5,6],
+  "prennent":[5,6,7],"finissent":[5,6,7],"donnent":[4,5,6],"trouvent":[5,6,7],
+  "restent":[4,5,6],"marchent":[5,6,7],
+  // Final -p silent or internal cluster letters
+  "beaucoup":[4,7],"drap":[3],"loup":[3],"trop":[3],
+  // Final -s silent (already many above); add some determiners / adverbs
+  "tous":[3],"plus":[3],"tres":[3],"moins":[4],"gris":[3],"autres":[5],
+  // Final -x silent
+  "deux":[3],"heureux":[5],"cheveux":[6],"eux":[2],"aux":[2],"eaux":[3],
+  // Final -d silent
+  "chaud":[4],"froid":[4],"quand":[4],
+  // Final -g (before n) silent already covered by "long"; add plurals above.
+  // Misc frequent irregulars / silent clusters
+  "femme":[4],"monsieur":[6,7],"madame":[5],"oeuf":[3],"oeufs":[3],
+  "coeur":[3],"soeur":[3],"oeil":[3],"yeux":[3],
+  "doigt":[3],"doigts":[3],"poids":[3],
+  "tabac":[4],"estomac":[6],"beurre":[5],
+  "plomb":[4],"plombs":[4],"lait":[3],"mets":[3],"met":[3],
+  // Corrections for multi-silent endings
+  "faites":[4,5],"taisez":[3],"temps":[2,3,4],"printemps":[6,7],
+  // Words ending in -ps / -ts / -rs etc
+  "corps":[4],"champs":[4,5],"camp":[3],"camps":[3,4],
+  // Silent final consonant after nasal vowel
+  "bal":[2],"bals":[2,3],"chef":[3],"chefs":[4],
+  // Additional common numerals / days style
+  "dix":[2],"six":[2],"sept":[3],"août":[2,3]
     }
   }
 };

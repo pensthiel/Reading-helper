@@ -1,13 +1,41 @@
 export const PHONICS = {
   en: {
-    colored: [
-      { match: "oo", cls: "ph1" },
-      { match: "ou", cls: "ph2" },
-      { match: "th", cls: "ph3" },
-      { match: "sh", cls: "ph4" },
-      { match: "ch", cls: "ph5" },
-      { match: "ee", cls: "ph6" }
-    ],
+    soundGroups: {
+      // vowel sounds
+      "uː": ["oo"],
+      "ʌ": ["ou"],
+      "ð": ["th"],
+      "θ": ["th"],
+      "ʃ": ["sh"],
+      "tʃ": ["ch"],
+      "iː": ["ee"],
+      "aɪ": ["igh", "ay"],
+      "f": ["ph"],
+      "ʃən": ["tion"],
+      "oʊ": ["ow", "eau"],
+      "aʊ": ["ow"],
+      "eɪ": ["ay"],
+      "ɔɪ": ["oy", "oi"],
+      "ər": ["er", "ir", "ur"],
+      "ɑː": ["ar"],
+      "ɔː": ["or"],
+      "juː": ["you", "yew"],
+      "ɜː": ["ear", "ir"],
+      // extra digraphs
+      "ŋ": ["ng"],
+      "dʒ": ["ge", "gi"],
+      "k": ["ck", "qu"],
+      "s": ["ss", "ce", "ci"],
+      "z": ["zz"],
+      "g": ["gh"],
+      "h": ["wh"],
+      "ə": ["a", "e"],
+      "æ": ["a"],
+      "ɛ": ["e"],
+      "ɪ": ["i"],
+      "ɒ": ["o"],
+      "ʊ": ["u"]
+    },
     silentWords: {
       // Silent K
       "knight":[0],"knee":[0],"know":[0],"knife":[0],"knock":[0],
