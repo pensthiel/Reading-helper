@@ -5,6 +5,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Kids Reading Helper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playwrite+FR+Trad+Guides:wght@400&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #ffffff;
@@ -28,6 +31,12 @@
       --sound-fr-on: #e11d48;
       --sound-en-oo: #2563eb;
       --sound-en-ee: #f97316;
+      --sound-en-th: #ef4444;
+      --sound-en-sh: #6366f1;
+      --sound-en-ch: #0ea5e9;
+      --reader-font-sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      --reader-font-cursive: "Playwrite FR Trad Guides", "Comic Sans MS", "Comic Sans", cursive;
+      --reader-font: var(--reader-font-sans);
     }
 
     .dark {
@@ -46,6 +55,9 @@
       --sound-fr-on: #fb7185;
       --sound-en-oo: #60a5fa;
       --sound-en-ee: #fbbf24;
+      --sound-en-th: #f87171;
+      --sound-en-sh: #a78bfa;
+      --sound-en-ch: #38bdf8;
     }
 
     html,
@@ -230,6 +242,7 @@
       }
   .app-grid { grid-template-columns: minmax(36px, 10vw) 1fr; }
   #plantCanvas { width: 100%; height: auto; }
+  #flowerShelf { justify-content: center; }
     }
 
     .reader-controls {
@@ -242,8 +255,10 @@
 
   /* App-wide left dock for plant ribbon */
   .app-grid { display: grid; grid-template-columns: minmax(44px, 6vw) 1fr; gap: 8px; align-items: start; }
-  #plantDock { position: sticky; top: 8px; }
+  #plantDock { position: sticky; top: 8px; display:flex; flex-direction:column; align-items:center; gap:12px; }
   #plantCanvas { display:block; width: 100%; height: auto; image-rendering: pixelated; }
+  #flowerShelf { width:100%; display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-start; align-items:center; padding:6px 4px; background:var(--card); border-radius:10px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.05); }
+  #flowerShelf .mini-flower { width:14px; height:14px; border-radius:50%; background:var(--flower-color, var(--accent)); box-shadow:0 0 0 1px rgba(0,0,0,.18); }
 
     .control-row {
       display: flex;
@@ -264,6 +279,7 @@
       background: var(--card);
       border-radius: 12px;
       padding: 16px;
+      font-family: var(--reader-font, var(--reader-font-sans));
       font-size: clamp(22px, 6vw, 34px);
       line-height: 2;
       letter-spacing: .4px;
@@ -274,11 +290,6 @@
 
     .reader-inner p {
       margin: 0 0 1.2em 0
-    }
-
-    .reader-inner p.title {
-      font-weight: 800;
-      margin-bottom: 0.8em
     }
 
     .word {
@@ -360,6 +371,18 @@
       color: var(--sound-en-ee)
     }
 
+    .sound-en-th {
+      color: var(--sound-en-th)
+    }
+
+    .sound-en-sh {
+      color: var(--sound-en-sh)
+    }
+
+    .sound-en-ch {
+      color: var(--sound-en-ch)
+    }
+
     footer {
       margin: 24px 0 40px;
       text-align: center;
@@ -417,6 +440,7 @@
   <div class="app-grid">
     <aside id="plantDock" aria-hidden="true">
       <canvas id="plantCanvas" width="80" height="260"></canvas>
+      <div id="flowerShelf" aria-hidden="true"></div>
     </aside>
     <div class="wrap">
     <header>
@@ -429,9 +453,7 @@
     <section class="card">
       <h2 style="margin:6px 0 8px;font-size:18px">What this does</h2>
       <p class="note" style="font-size:14px;color:var(--fg)">
-        Paste a story or generate one, pick age or reading level, then build the helper.
-        Big text, real paragraph spacing, title bold. Tap/click moves word by word.
-        Whisper (optional) listens first; if correct, it skips speaking that word.
+        Paste a story or generate one, then build the helper. After reading a word, Tap/click to read it out loud to check your pronunciation, then read the next one.
         Phonics colors + silent letters are highlighted to help with reading.
       </p>
     </section>
@@ -562,6 +584,12 @@
               <label class="pill">rate <input type="range" id="rate" min="0.6" max="1.4" step="0.05" value="1"></label>
               <label class="pill">pitch <input type="range" id="pitch" min="0.8" max="1.4" step="0.05"
                   value="1"></label>
+              <label class="pill">font
+                <select id="fontSelect">
+                  <option value="sans">Clean sans</option>
+                  <option value="cursive">Cursive</option>
+                </select>
+              </label>
             </div>
             <div class="hint" id="tapHint">Tip: tap or click to hear the next word</div>
           </div>
@@ -571,7 +599,7 @@
       </div>
     </section>
 
-    <footer>Client-side. EN + FR only. Dictionary-driven silent letters (no generic guesses). Whisper needs an OpenAI
+    <footer>Client-side. EN + FR only. Whisper needs an OpenAI
       key.</footer>
     </div>
   </div>
@@ -581,17 +609,56 @@
     const $ = s => document.querySelector(s);
     const $$ = s => Array.from(document.querySelectorAll(s));
   const LS = { story: "krh_story", idx: "krh_index", theme: "krh_theme", key: "krh_key", settings: "krh_settings", lang: "krh_lang", plant: "krh_plant" };
-  const state = { tokens: [], index: 0, voices: [], lang: "en", lockedVoice: null, mediaStream: null, PHONICS: null, plant: null };
+  const state = {
+    tokens: [],
+    index: 0,
+    voices: [],
+    lang: "en",
+    lockedVoice: null,
+    mediaStream: null,
+    PHONICS: null,
+    plant: null,
+    sentenceEnds: [],
+    storySignature: "",
+    readerFont: "sans"
+  };
   const langButtons = () => Array.from(document.querySelectorAll("#langToggle .lang-btn"));
-  const VOICE_PREFS = { en: ["en-US", "en-GB", "en"], fr: ["fr-FR", "fr-CA", "fr"] };
+  const VOICE_PREFS = {
+    en: [
+      { name: "Google UK English Female" },
+      { lang: "en-GB" },
+      { lang: "en-US" },
+      { lang: "en" }
+    ],
+    fr: [
+      { name: "Google français" },
+      { lang: "fr-FR" },
+      { lang: "fr" }
+    ]
+  };
+  const READER_FONT_KEYS = ["sans", "cursive"];
   function findPreferredVoice(lang, voices) {
     const normalized = (lang === "fr" ? "fr" : "en");
     const prefs = VOICE_PREFS[normalized] || [];
     for (const pref of prefs) {
-      const match = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(pref.toLowerCase()));
-      if (match) return match;
+      if (pref.name) {
+        const matchByName = voices.find(v => v.name && v.name.toLowerCase().includes(pref.name.toLowerCase()));
+        if (matchByName) return matchByName;
+      }
+      if (pref.lang) {
+        const matchByLang = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(pref.lang.toLowerCase()));
+        if (matchByLang) return matchByLang;
+      }
     }
     return voices.find(v => v.lang && v.lang.toLowerCase().startsWith(normalized)) || voices[0] || null;
+  }
+
+  function applyReaderFont(mode) {
+    const key = READER_FONT_KEYS.includes(mode) ? mode : "sans";
+    state.readerFont = key;
+    document.documentElement.style.setProperty("--reader-font", `var(--reader-font-${key})`);
+    const sel = $("#fontSelect");
+    if (sel && sel.value !== key) sel.value = key;
   }
 
     const DEFAULT_STORY = `The Unicorn and the Mermaid
@@ -611,6 +678,14 @@ They made shell crowns, then watched pink clouds.
 "Best day," said Luna.
 "See you tomorrow," said Mira. Friends for life.`
       .replace(/^The Unicorn and the Mermaid\s*\n/i, "The Unicorn and the Mermaid\n");
+
+    function computeStorySignature(text) {
+      const normalized = (text || "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+      return `${normalized.length}:${normalized.slice(0, 120)}`;
+    }
 
     // theme
     if (localStorage.getItem(LS.theme) === "dark") document.documentElement.classList.add("dark");
@@ -684,7 +759,8 @@ They made shell crowns, then watched pink clouds.
       if (st.rate) $("#rate").value = st.rate;
       if (st.pitch) $("#pitch").value = st.pitch;
       if (st.enforceSeq !== undefined) $("#enforceSeq").checked = !!st.enforceSeq;
-  if (st.hybridPhonics !== undefined) $("#hybridPhonics").checked = !!st.hybridPhonics;
+      if (st.hybridPhonics !== undefined) $("#hybridPhonics").checked = !!st.hybridPhonics;
+      applyReaderFont(st.readerFont || "sans");
       if (st.whisper) $("#whisperEnabled").checked = !!st.whisper;
       if (st.openaiTtsModel) $("#openaiTtsModel").value = st.openaiTtsModel;
       if (st.openaiTtsVoice) $("#openaiTtsVoice").value = st.openaiTtsVoice;
@@ -766,7 +842,10 @@ They made shell crowns, then watched pink clouds.
     $("#btnStartOver").addEventListener("click", () => { state.index = 0; updateHighlight(); saveProgress(); });
     $("#btnResetAll").addEventListener("click", () => {
       if (!confirm("Reset everything")) return;
-      localStorage.removeItem(LS.story); localStorage.removeItem(LS.idx); localStorage.removeItem(LS.settings);
+      localStorage.removeItem(LS.story); localStorage.removeItem(LS.idx); localStorage.removeItem(LS.settings); localStorage.removeItem(LS.plant);
+      state.plant = defaultPlantState("");
+      updateFlowerShelf();
+      drawPlantRibbon();
       $("#story").value = ""; $("#readerText").innerHTML = ""; $("#reader").style.display = "none"; setStatus("All cleared.");
     });
 
@@ -777,6 +856,7 @@ They made shell crowns, then watched pink clouds.
     $("#rate").addEventListener("input", saveSettings);
     $("#pitch").addEventListener("input", saveSettings);
     $("#enforceSeq").addEventListener("change", saveSettings);
+    $("#fontSelect").addEventListener("change", (e) => { applyReaderFont(e.target.value); saveSettings(); });
     window.addEventListener("keydown", e => {
       if ($("#reader").style.display !== "block") return;
       if (e.code === "Space") { e.preventDefault(); advanceWithCheck(); }
@@ -801,12 +881,11 @@ They made shell crowns, then watched pink clouds.
       const container = $("#readerText"); container.innerHTML = "";
       const paras = splitParagraphs(text);
       const tokens = []; let globalIndex = 0;
+      const sentenceEnds = [];
 
       paras.forEach((para, pi) => {
         if (!para.trim()) return;
         const p = document.createElement("p");
-        const isTitle = (pi === 0 && maybeTitle(para));
-        if (isTitle) p.classList.add("title");
 
         const sentences = splitSentences(para);
         sentences.forEach((sent, si) => {
@@ -824,15 +903,21 @@ They made shell crowns, then watched pink clouds.
             globalIndex++;
           });
           if (si < sentences.length - 1) p.appendChild(document.createElement("br"));
+          if (words.length) sentenceEnds.push(globalIndex - 1);
         });
 
         container.appendChild(p);
       });
 
   state.tokens = tokens;
+      state.sentenceEnds = sentenceEnds;
       const savedIdx = parseInt(localStorage.getItem(LS.idx) || "0", 10);
       state.index = keepIndex ? clamp(savedIdx, 0, state.tokens.length - 1) : (isNaN(savedIdx) ? 0 : clamp(savedIdx, 0, state.tokens.length - 1));
       updateHighlight();
+      state.storySignature = computeStorySignature(text);
+      initPlantRibbon(state.storySignature);
+      checkSentenceCredit();
+      ensureFinalBloomIfEnded();
 
       container.onclick = (e) => {
         const enforce = $("#enforceSeq").checked;
@@ -849,16 +934,9 @@ They made shell crowns, then watched pink clouds.
       setStatus("Reader ready. Tap or click anywhere in the text.");
       $("#progressPill").textContent = `${state.index + 1} of ${state.tokens.length}`;
 
-  // Init plant ribbon
-  initPlantRibbon();
-  drawPlantRibbon();
     }
 
     function splitParagraphs(text) { return text.replace(/\r/g, '').split(/\n\s*\n/); }
-    function maybeTitle(para) {
-      const firstLine = para.split('\n')[0].trim();
-      return firstLine.length <= 60 && !/[.!?…]$/.test(firstLine);
-    }
     function splitSentences(para) {
       const out = []; let cur = "";
       for (let i = 0; i < para.length; i++) {
@@ -1046,8 +1124,8 @@ They made shell crowns, then watched pink clouds.
     function stepForward() {
       if (state.index < state.tokens.length - 1) state.index++;
       updateHighlight(); saveProgress();
-  // grow plant by one unit on forward progress
-  plantAdvance();
+      checkSentenceCredit();
+      ensureFinalBloomIfEnded();
     }
 
     // ---------- TTS ----------
@@ -1064,9 +1142,7 @@ They made shell crowns, then watched pink clouds.
       const u = new SpeechSynthesisUtterance(text);
       u.rate = parseFloat($("#rate").value || "1"); u.pitch = parseFloat($("#pitch").value || "1");
       if (!state.lockedVoice) {
-        const preferred = pickPreferredLang();
-        const m = state.voices.find(v => v.lang && v.lang.toLowerCase().startsWith(preferred));
-        state.lockedVoice = m || state.voices[0] || null;
+        state.lockedVoice = findPreferredVoice(state.lang, state.voices);
       }
       if (state.lockedVoice) u.voice = state.lockedVoice;
       u.onend = () => after && after(); u.onerror = () => setError("TTS failed.");
@@ -1197,6 +1273,7 @@ They made shell crowns, then watched pink clouds.
         pitch: $("#pitch").value,
         enforceSeq: $("#enforceSeq").checked,
         hybridPhonics: $("#hybridPhonics").checked,
+        readerFont: $("#fontSelect").value,
         whisper: $("#whisperEnabled").checked,
         openaiTtsModel: $("#openaiTtsModel").value,
         openaiTtsVoice: $("#openaiTtsVoice").value,
@@ -1215,114 +1292,217 @@ They made shell crowns, then watched pink clouds.
     // preload voices early
     if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = populateVoices; populateVoices(); }
 
-    // ---------------- Plant ribbon (pixel flower) ----------------
-    function getPlantState(){
-      const def = { level: 0, cells: 0, bloomed: false, colorIdx: 0 };
-      try { return Object.assign(def, JSON.parse(localStorage.getItem(LS.plant) || "{}")); } catch { return def; }
-    }
-    function savePlantState(){ localStorage.setItem(LS.plant, JSON.stringify(state.plant||{})); }
-    function initPlantRibbon(){
-      state.plant = getPlantState();
-      // reset if canvas not present
-      if (!document.getElementById('plantCanvas')) return;
-      // ensure sane values
-      if (state.plant.level < 0) state.plant.level = 0;
-      if (state.plant.cells < 0) state.plant.cells = 0;
-      resizePlantCanvas();
-    }
-    function plantMaxCells(){
-      const cv = document.getElementById('plantCanvas'); if (!cv) return 0;
-      const dpr = window.devicePixelRatio || 1;
-      const H = cv.height / dpr; // CSS px
-  const cell = 6, bottomMargin = 8 + 6 + 4, topMargin = 56; // px
-  const base = Math.max(0, Math.floor((H - bottomMargin - topMargin) / cell));
-  // Speed up early growth: smaller threshold for level 0, then ramp up
-  const level = state.plant?.level || 0;
-  const factor = level === 0 ? 0.55 : level === 1 ? 0.75 : 1;
-  return Math.max(3, Math.floor(base * factor));
-    }
-    function plantAdvance(){
-      const cv = document.getElementById('plantCanvas'); if (!cv) return;
-      if (!state.plant) initPlantRibbon();
-      if (state.plant.bloomed) {
-        // start next level on first step after bloom
-        state.plant.level += 1;
-        state.plant.cells = 0;
-        state.plant.bloomed = false;
-        state.plant.colorIdx = (state.plant.colorIdx + 1) % PLANT_COLORS.flowers.length;
-      } else {
-        state.plant.cells += 1;
-        if (state.plant.cells >= plantMaxCells()) state.plant.bloomed = true;
-      }
-      savePlantState();
-      drawPlantRibbon();
-    }
+    // ---------------- Plant ribbon (sentence-based growth) ----------------
     const PLANT_COLORS = {
       stem: "#2e7d32",
       leaf: "#388e3c",
       seed1: "#6d4c41",
       seed2: "#8d6e63",
       center: "#ffeb3b",
-      flowers: ["#d81b60","#8e24aa","#1e88e5","#43a047","#fb8c00","#e53935","#3949ab"]
+      bud: "#94a3b8",
+      flowers: ["#d81b60", "#8e24aa", "#1e88e5", "#43a047", "#fb8c00", "#e53935", "#3949ab"]
     };
-    function drawPlantRibbon(){
+
+    function defaultPlantState(signature) {
+      return {
+        storyKey: signature || "",
+        level: 0,
+        progress: 0,
+        target: 1,
+        bloomed: false,
+        colorIdx: 0,
+        completed: [],
+        sentencesCredited: 0
+      };
+    }
+
+    function getPlantState(signature) {
+      const def = defaultPlantState(signature);
+      try {
+        const raw = JSON.parse(localStorage.getItem(LS.plant) || "{}");
+        if (!raw || typeof raw !== "object") return def;
+        const upgraded = {
+          storyKey: typeof raw.storyKey === "string" ? raw.storyKey : "",
+          level: Number.isFinite(raw.level) ? raw.level : 0,
+          progress: Number.isFinite(raw.progress) ? raw.progress : 0,
+          target: Number.isFinite(raw.target) && raw.target > 0 ? raw.target : 1,
+          bloomed: !!raw.bloomed,
+          colorIdx: Number.isFinite(raw.colorIdx) ? raw.colorIdx : 0,
+          completed: Array.isArray(raw.completed) ? raw.completed.map(n => n | 0).slice(-48) : [],
+          sentencesCredited: Number.isFinite(raw.sentencesCredited) ? raw.sentencesCredited : 0
+        };
+        if (upgraded.storyKey !== signature) return def;
+        upgraded.target = Math.max(1, Math.round(upgraded.target));
+        upgraded.progress = Math.min(upgraded.target, Math.max(0, upgraded.progress));
+        upgraded.colorIdx = ((upgraded.colorIdx % PLANT_COLORS.flowers.length) + PLANT_COLORS.flowers.length) % PLANT_COLORS.flowers.length;
+        upgraded.sentencesCredited = Math.max(0, upgraded.sentencesCredited);
+        return upgraded;
+      } catch {
+        return def;
+      }
+    }
+
+    function savePlantState() {
+      if (!state.plant) return;
+      localStorage.setItem(LS.plant, JSON.stringify(state.plant));
+    }
+
+    function initPlantRibbon(signature) {
+      state.plant = getPlantState(signature);
+      if (state.plant.storyKey !== signature) {
+        state.plant = defaultPlantState(signature);
+        savePlantState();
+      }
+      resizePlantCanvas();
+      updateFlowerShelf();
+      drawPlantRibbon();
+    }
+
+    function plantStartNextLevel() {
+      if (!state.plant) return;
+      state.plant.bloomed = false;
+      state.plant.progress = 0;
+      state.plant.target = Math.max(1, state.plant.level + 1);
+      state.plant.colorIdx = (state.plant.colorIdx + 1) % PLANT_COLORS.flowers.length;
+      savePlantState();
+      drawPlantRibbon();
+    }
+
+    function plantBloom() {
+      if (!state.plant) return;
+      const colorIdx = ((state.plant.colorIdx % PLANT_COLORS.flowers.length) + PLANT_COLORS.flowers.length) % PLANT_COLORS.flowers.length;
+      state.plant.completed = Array.isArray(state.plant.completed) ? state.plant.completed : [];
+      state.plant.completed.push(colorIdx);
+      if (state.plant.completed.length > 48) state.plant.completed = state.plant.completed.slice(-48);
+      state.plant.level += 1;
+      state.plant.bloomed = true;
+      state.plant.progress = state.plant.target;
+      savePlantState();
+      updateFlowerShelf();
+      drawPlantRibbon();
+    }
+
+    function plantRecordSentence() {
+      if (!state.plant) return;
+      if (state.plant.bloomed) plantStartNextLevel();
+      state.plant.progress += 1;
+      if (state.plant.progress >= state.plant.target) {
+        state.plant.progress = state.plant.target;
+        plantBloom();
+      } else {
+        savePlantState();
+        drawPlantRibbon();
+      }
+    }
+
+    function checkSentenceCredit() {
+      if (!state.plant || !Array.isArray(state.sentenceEnds)) return;
+      while (state.plant.sentencesCredited < state.sentenceEnds.length &&
+        state.index >= state.sentenceEnds[state.plant.sentencesCredited]) {
+        state.plant.sentencesCredited += 1;
+        plantRecordSentence();
+      }
+    }
+
+    function ensureFinalBloomIfEnded() {
+      if (!state.plant || !state.tokens.length) return;
+      if (state.tokens.length && state.index === state.tokens.length - 1) {
+        if (!state.plant.bloomed && state.plant.progress > 0) {
+          state.plant.progress = state.plant.target;
+          plantBloom();
+        } else {
+          savePlantState();
+        }
+      }
+    }
+
+    function updateFlowerShelf() {
+      const shelf = document.getElementById("flowerShelf");
+      if (!shelf) return;
+      shelf.innerHTML = "";
+      const completed = Array.isArray(state.plant?.completed) ? state.plant.completed : [];
+      completed.forEach((idx, i) => {
+        const span = document.createElement("span");
+        span.className = "mini-flower";
+        span.setAttribute("aria-hidden", "true");
+        const color = PLANT_COLORS.flowers[Math.abs(idx) % PLANT_COLORS.flowers.length] || PLANT_COLORS.flowers[0];
+        span.style.setProperty("--flower-color", color);
+        span.title = `Completed flower ${i + 1}`;
+        shelf.appendChild(span);
+      });
+    }
+
+    function drawPlantRibbon() {
       const cv = document.getElementById('plantCanvas'); if (!cv) return;
       const ctx = cv.getContext('2d');
       const dpr = window.devicePixelRatio || 1;
       const cell = 6;
-      const Wcss = cv.width / dpr, Hcss = cv.height / dpr;
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.clearRect(0,0,cv.width,cv.height);
+      const width = cv.width / dpr;
+      const height = cv.height / dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, cv.width, cv.height);
       ctx.scale(dpr, dpr);
-  // stem grows upwards from bottom; center to nearest 6px cell
-  const centerX = Math.floor((Wcss/2)/cell)*cell;
-  // seed centered under stem
-  ctx.fillStyle = PLANT_COLORS.seed1; ctx.fillRect(centerX-6, Hcss-18, 6, 6);
-  ctx.fillStyle = PLANT_COLORS.seed2; ctx.fillRect(centerX,   Hcss-18, 6, 6);
-  // stem
+
+      const centerX = Math.floor((width / 2) / cell) * cell;
+      const stemBaseY = height - 32;
+
+      // seed mound
+      ctx.fillStyle = PLANT_COLORS.seed1; ctx.fillRect(centerX - 6, stemBaseY + 12, cell, cell);
+      ctx.fillStyle = PLANT_COLORS.seed2; ctx.fillRect(centerX, stemBaseY + 12, cell, cell);
+
+      if (!state.plant) return;
+
+      const target = Math.max(1, state.plant.target || 1);
+      const progress = Math.min(target, state.plant.progress || 0);
+      const bloomed = !!state.plant.bloomed;
+      const ratio = target > 0 ? Math.min(1, progress / target) : 0;
+      const segmentsTotal = 4 + target * 2;
+      let filledSegments = bloomed ? segmentsTotal : Math.round(ratio * segmentsTotal);
+      if (!bloomed && progress > 0 && filledSegments === 0) filledSegments = 1;
+      filledSegments = Math.min(segmentsTotal, Math.max(0, filledSegments));
+
       ctx.fillStyle = PLANT_COLORS.stem;
-      const maxCells = plantMaxCells();
-      const stemBaseY = Hcss - 26; // above seed
-      for (let i=0;i<Math.min(state.plant?.cells||0, maxCells);i++){
-        const y = stemBaseY - i*cell;
-        ctx.fillRect(centerX, y, 6, 6);
-        // occasional leaves
-        if (i % 4 === 2) { ctx.fillStyle = PLANT_COLORS.leaf; ctx.fillRect(centerX-6, y, 6, 6); ctx.fillStyle = PLANT_COLORS.stem; }
-        if (i % 5 === 3) { ctx.fillStyle = PLANT_COLORS.leaf; ctx.fillRect(centerX+6, y-6, 6, 6); ctx.fillStyle = PLANT_COLORS.stem; }
+      for (let i = 0; i < filledSegments; i++) {
+        const y = stemBaseY - i * cell;
+        ctx.fillRect(centerX, y, cell, cell);
+        if (i % 3 === 2) {
+          ctx.fillStyle = PLANT_COLORS.leaf;
+          ctx.fillRect(centerX - cell, y, cell, cell);
+          ctx.fillStyle = PLANT_COLORS.stem;
+        }
+        if (i % 4 === 1) {
+          ctx.fillStyle = PLANT_COLORS.leaf;
+          ctx.fillRect(centerX + cell, y - cell, cell, cell);
+          ctx.fillStyle = PLANT_COLORS.stem;
+        }
       }
-      // flower when bloomed
-      if (state.plant?.bloomed) {
-        const petal = PLANT_COLORS.flowers[state.plant.colorIdx||0];
-        const baseY = 24; // near top
-        // center
-        ctx.fillStyle = PLANT_COLORS.center; ctx.fillRect(centerX, baseY+26, 6, 6);
-        // petals (daisy ring)
-        ctx.fillStyle = petal;
-        // 3x3 around center
-        ctx.fillRect(centerX-6, baseY+20, 6,6);
-        ctx.fillRect(centerX,     baseY+20, 6,6);
-        ctx.fillRect(centerX+6,   baseY+20, 6,6);
-        ctx.fillRect(centerX-6, baseY+26, 6,6);
-        ctx.fillRect(centerX+6, baseY+26, 6,6);
-        ctx.fillRect(centerX-6, baseY+32, 6,6);
-        ctx.fillRect(centerX,     baseY+32, 6,6);
-        ctx.fillRect(centerX+6,   baseY+32, 6,6);
-        // crown extras
-        ctx.fillRect(centerX, baseY+14, 6,6);
-        ctx.fillRect(centerX-6, baseY+8, 6,6);
-        ctx.fillRect(centerX+6, baseY+8, 6,6);
-        ctx.fillRect(centerX, baseY+38, 6,6);
-        ctx.fillRect(centerX-6, baseY+44, 6,6);
-        ctx.fillRect(centerX+6, baseY+44, 6,6);
+
+      const colorIdx = ((state.plant.colorIdx % PLANT_COLORS.flowers.length) + PLANT_COLORS.flowers.length) % PLANT_COLORS.flowers.length;
+      const flowerColor = PLANT_COLORS.flowers[colorIdx] || PLANT_COLORS.bud;
+
+      if (bloomed && filledSegments > 0) {
+        const centerY = stemBaseY - filledSegments * cell - cell;
+        ctx.fillStyle = PLANT_COLORS.center;
+        ctx.fillRect(centerX, centerY, cell, cell);
+        ctx.fillStyle = flowerColor;
+        const petals = [
+          [-cell, 0], [cell, 0], [0, -cell], [0, cell],
+          [-cell, -cell], [cell, -cell], [-cell, cell], [cell, cell]
+        ];
+        petals.forEach(([dx, dy]) => ctx.fillRect(centerX + dx, centerY + dy, cell, cell));
+      } else if (filledSegments > 0) {
+        const budY = stemBaseY - filledSegments * cell - cell;
+        ctx.fillStyle = flowerColor;
+        ctx.fillRect(centerX, budY, cell, cell);
       }
     }
-    function resizePlantCanvas(){
+
+    function resizePlantCanvas() {
       const cv = document.getElementById('plantCanvas'); if (!cv) return;
-  // Size based on container width (percentage grid) and viewport height
-  const dock = document.getElementById('plantDock');
-  const rect = dock?.getBoundingClientRect();
-  const cssW = Math.max(44, Math.floor((rect?.width || 56)));
-  const cssH = Math.max(220, Math.floor(window.innerHeight - 32));
+      const dock = document.getElementById('plantDock');
+      const rect = dock?.getBoundingClientRect();
+      const cssW = Math.max(48, Math.floor((rect?.width || 56)));
+      const cssH = Math.max(220, Math.floor(window.innerHeight - 48));
       const dpr = window.devicePixelRatio || 1;
       cv.style.width = cssW + 'px';
       cv.style.height = cssH + 'px';

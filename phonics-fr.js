@@ -17,11 +17,9 @@ export const PHONICS = {
       "j": ["ge", "gi"],
       "ʃ": ["ch"],
       "s": ["ss"],
-      "k": ["qu", "c"],
+      "k": ["qu"],
       "ɡ": ["gu"],
-      "y": ["y"],
       "ø": ["eu", "oeu"],
-      "ə": ["e"],
       "ɛ": ["ai", "ei"],
       "oɛ": ["oi"]
     },
@@ -75,7 +73,11 @@ export const PHONICS = {
   // Silent final consonant after nasal vowel
   "bal":[2],"bals":[2,3],"chef":[3],"chefs":[4],
   // Additional common numerals / days style
-  "dix":[2],"six":[2],"sept":[3],"août":[2,3]
+  "dix":[2],"six":[2],"sept":[3],"août":[2,3],
+  // Extra frequent exceptions not caught by heuristics
+  "trois":[4],"choix":[4],"prix":[3],"nez":[2],
+  "faon":[3],"faons":[3,4],
+  "vingt":[2,3,4],"vingts":[2,3,4,5]
     }
   }
 };

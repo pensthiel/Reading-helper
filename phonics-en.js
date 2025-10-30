@@ -1,42 +1,20 @@
 export const PHONICS = {
   en: {
     soundGroups: {
-      // vowel sounds
-      "uː": ["oo"],
-      "ʌ": ["ou"],
-      "ð": ["th"],
+      // consonant digraphs
       "θ": ["th"],
+      "ð": ["th"],
       "ʃ": ["sh"],
       "tʃ": ["ch"],
-      "iː": ["ee"],
-      "aɪ": ["igh", "ay"],
-      "f": ["ph"],
-      "ʃən": ["tion"],
-      "oʊ": ["ow", "eau"],
-      "aʊ": ["ow"],
-      "eɪ": ["ay"],
-      "ɔɪ": ["oy", "oi"],
-      "ər": ["er", "ir", "ur"],
-      "ɑː": ["ar"],
-      "ɔː": ["or"],
-      "juː": ["you", "yew"],
-      "ɜː": ["ear", "ir"],
-      // extra digraphs
-      "ŋ": ["ng"],
-      "dʒ": ["ge", "gi"],
-      "k": ["ck", "qu"],
-      "s": ["ss", "ce", "ci"],
-      "z": ["zz"],
-      "g": ["gh"],
-      "h": ["wh"],
-      "ə": ["a", "e"],
-      "æ": ["a"],
-      "ɛ": ["e"],
-      "ɪ": ["i"],
-      "ɒ": ["o"],
-      "ʊ": ["u"]
+      // long vowels
+      "uː": ["oo"],
+      "iː": ["ee", "ea"]
     },
     soundPalette: {
+      "θ": "sound-en-th",
+      "ð": "sound-en-th",
+      "ʃ": "sound-en-sh",
+      "tʃ": "sound-en-ch",
       "uː": "sound-en-oo",
       "iː": "sound-en-ee"
     },
@@ -60,7 +38,22 @@ export const PHONICS = {
       // Misc frequent
       "island":[1],"salmon":[3],"pneumonia":[0],"receipt":[5],
       "yacht":[4],"half":[2],"calf":[3],"folk":[3],"talk":[3],
-      "walk":[3],"chalk":[3],"answer":[2],"subtle":[2],"plumber":[3]
+      "walk":[3],"chalk":[3],"answer":[2],"subtle":[2],"plumber":[3],
+      // Added coverage - silent leading letters
+      "gnome":[0],"gnat":[0],"gnaw":[0],"gnarl":[0],"gnash":[0],
+      "knot":[0],"knob":[0],"knit":[0],"knack":[0],"knead":[0],
+      "wrack":[0],"wrapt":[0],"wren":[0],"wrist":[0],"wreck":[0],
+      "psyche":[0],"pterodactyl":[0],
+      // Silent middle letters
+      "align":[3],"sign":[2],"design":[4],"resign":[4],"foreign":[5],
+      "campaign":[6],"champagne":[6],
+      "muscle":[3],"scent":[1],"science":[1],"scissors":[1],
+      "whack":[1],"whisk":[1],"ghostly":[1],"glisten":[4],
+      // Silent final letters
+      "balm":[2],"calm":[2],"palm":[2],"psalm":[0,3],
+      "doubt":[3],"climb":[4],"crumb":[4],"thumbs":[4],
+      "autumn":[5],"column":[5],"solemn":[5],"hymn":[3],
+      "damn":[3],"foreigners":[5],"plough":[4,5],"thorough":[6,7]
     }
   }
 };
