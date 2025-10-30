@@ -36,6 +36,10 @@ export const PHONICS = {
       "ɒ": ["o"],
       "ʊ": ["u"]
     },
+    soundPalette: {
+      "uː": "sound-en-oo",
+      "iː": "sound-en-ee"
+    },
     silentWords: {
       // Silent K
       "knight":[0],"knee":[0],"know":[0],"knife":[0],"knock":[0],

@@ -3,10 +3,10 @@ export const PHONICS = {
     // Phoneme groups: sound symbol -> array of grapheme patterns.
     // These will be assigned colors dynamically (same sound => same color).
     soundGroups: {
-      "u": ["ou"],
-      "ɔ̃": ["on"],
-      "ɑ̃": ["an", "en"],
-      "ɛ̃": ["in", "im"],
+      "u": ["ou", "où"],
+      "ɔ̃": ["on", "om"],
+      "ɑ̃": ["an", "en", "am", "em"],
+      "ɛ̃": ["in", "im", "ain", "ein", "aim", "eim", "yn", "ym"],
       "e": ["ai", "é", "er"],
       "wa": ["oi"],
       "o": ["eau", "eaux", "au", "aux"],
@@ -24,6 +24,14 @@ export const PHONICS = {
       "ə": ["e"],
       "ɛ": ["ai", "ei"],
       "oɛ": ["oi"]
+    },
+    soundPalette: {
+      "u": "sound-fr-ou",
+      "o": "sound-fr-au",
+      "ɑ̃": "sound-fr-en",
+      "ɛ̃": "sound-fr-in",
+      "œ̃": "sound-fr-in",
+      "ɔ̃": "sound-fr-on"
     },
     silentWords: {
   // NOTE: indices are 0-based positions within the letters-only form (accents stripped).

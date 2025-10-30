@@ -21,6 +21,13 @@
       --col5: #1565c0;
       --col6: #c2185b;
       --silent: #9aa0a6;
+      --sound-fr-ou: #1f7a8c;
+      --sound-fr-au: #d97706;
+      --sound-fr-en: #16a34a;
+      --sound-fr-in: #7c3aed;
+      --sound-fr-on: #e11d48;
+      --sound-en-oo: #2563eb;
+      --sound-en-ee: #f97316;
     }
 
     .dark {
@@ -31,7 +38,14 @@
       --danger: #ff6b6b;
       --card: #171a21;
       --highlight: #2a2e39;
-      --silent: #6b7280
+      --silent: #6b7280;
+      --sound-fr-ou: #4cc9f0;
+      --sound-fr-au: #f7a33c;
+      --sound-fr-en: #4ade80;
+      --sound-fr-in: #a855f7;
+      --sound-fr-on: #fb7185;
+      --sound-en-oo: #60a5fa;
+      --sound-en-ee: #fbbf24;
     }
 
     html,
@@ -318,6 +332,34 @@
       color: var(--silent)
     }
 
+    .sound-fr-ou {
+      color: var(--sound-fr-ou)
+    }
+
+    .sound-fr-au {
+      color: var(--sound-fr-au)
+    }
+
+    .sound-fr-en {
+      color: var(--sound-fr-en)
+    }
+
+    .sound-fr-in {
+      color: var(--sound-fr-in)
+    }
+
+    .sound-fr-on {
+      color: var(--sound-fr-on)
+    }
+
+    .sound-en-oo {
+      color: var(--sound-en-oo)
+    }
+
+    .sound-en-ee {
+      color: var(--sound-en-ee)
+    }
+
     footer {
       margin: 24px 0 40px;
       text-align: center;
@@ -340,14 +382,28 @@
       align-items: center
     }
 
-    .lang-wrap {
+    .lang-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 6px
+      gap: 6px;
+      padding: 4px 6px
     }
 
-    .lang-wrap select {
-      min-width: 120px
+    .lang-toggle .lang-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color .2s ease, color .2s ease;
+    }
+
+    .lang-toggle .lang-btn[aria-pressed="true"] {
+      background: var(--accent);
+      color: #fff;
     }
 
     /* Only inside TTS Engine section */
@@ -392,7 +448,7 @@
         </div>
 
         <div>
-          <details class="optional" open>
+          <details class="optional">
             <summary>Optional AI features</summary>
             <div style="margin-top:8px">
               <label>OpenAI API key (for story gen & Whisper)</label>
@@ -480,13 +536,10 @@
         <button id="btnBuildReader" class="btn primary">🔧 Generate Reading Helper</button>
         <button id="btnStartOver" class="btn ghost sm">🔁 Start over</button>
         <button id="btnResetAll" class="btn danger sm">♻️ Reset all</button>
-        <span class="pill lang-wrap" style="margin-left:auto">
-          Language
-          <select id="langSelect">
-            <option value="en" selected>English</option>
-            <option value="fr">Français</option>
-          </select>
-        </span>
+        <div class="pill lang-toggle" id="langToggle" style="margin-left:auto" role="group" aria-label="Language">
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">English</button>
+          <button type="button" class="lang-btn" data-lang="fr" aria-pressed="false">Français</button>
+        </div>
       </div>
       <div id="status" class="note" style="margin-top:6px"></div>
 
@@ -509,7 +562,6 @@
               <label class="pill">rate <input type="range" id="rate" min="0.6" max="1.4" step="0.05" value="1"></label>
               <label class="pill">pitch <input type="range" id="pitch" min="0.8" max="1.4" step="0.05"
                   value="1"></label>
-              <label class="pill">voice <select id="voiceSelect"></select></label>
             </div>
             <div class="hint" id="tapHint">Tip: tap or click to hear the next word</div>
           </div>
@@ -530,6 +582,17 @@
     const $$ = s => Array.from(document.querySelectorAll(s));
   const LS = { story: "krh_story", idx: "krh_index", theme: "krh_theme", key: "krh_key", settings: "krh_settings", lang: "krh_lang", plant: "krh_plant" };
   const state = { tokens: [], index: 0, voices: [], lang: "en", lockedVoice: null, mediaStream: null, PHONICS: null, plant: null };
+  const langButtons = () => Array.from(document.querySelectorAll("#langToggle .lang-btn"));
+  const VOICE_PREFS = { en: ["en-US", "en-GB", "en"], fr: ["fr-FR", "fr-CA", "fr"] };
+  function findPreferredVoice(lang, voices) {
+    const normalized = (lang === "fr" ? "fr" : "en");
+    const prefs = VOICE_PREFS[normalized] || [];
+    for (const pref of prefs) {
+      const match = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(pref.toLowerCase()));
+      if (match) return match;
+    }
+    return voices.find(v => v.lang && v.lang.toLowerCase().startsWith(normalized)) || voices[0] || null;
+  }
 
     const DEFAULT_STORY = `The Unicorn and the Mermaid
 
@@ -554,19 +617,42 @@ They made shell crowns, then watched pink clouds.
     $("#toggleTheme").addEventListener("click", () => { document.documentElement.classList.toggle("dark"); localStorage.setItem(LS.theme, document.documentElement.classList.contains("dark") ? "dark" : "light"); });
 
     // language + lazy-load dictionary
+    function syncLangToggle() {
+      langButtons().forEach(btn => {
+        const isActive = btn.dataset.lang === state.lang;
+        btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+        btn.classList.toggle("active", isActive);
+      });
+    }
+
+    async function changeLanguage(nextLang) {
+      const target = nextLang === "fr" ? "fr" : "en";
+      if (target === state.lang && state.PHONICS) {
+        syncLangToggle();
+        return;
+      }
+      state.lang = target;
+      localStorage.setItem(LS.lang, state.lang);
+      syncLangToggle();
+      await loadPhonics(state.lang);
+      if ($("#reader").style.display === "block") {
+        const text = ($("#story").value || "").trim();
+        if (text) buildReader(text, true);
+      }
+      state.lockedVoice = null;
+      populateVoices();
+    }
+
     (async function initLang() {
       const saved = localStorage.getItem(LS.lang);
-      state.lang = saved || "en";
-      $("#langSelect").value = state.lang;
+      state.lang = saved === "fr" ? "fr" : "en";
+      syncLangToggle();
       await loadPhonics(state.lang);
-      $("#langSelect").addEventListener("change", async () => {
-        state.lang = $("#langSelect").value || "en";
-        localStorage.setItem(LS.lang, state.lang);
-        await loadPhonics(state.lang);
-        if ($("#reader").style.display === "block") {
-          const text = ($("#story").value || "").trim();
-          if (text) buildReader(text, true);
-        }
+      langButtons().forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const pressed = btn.dataset.lang;
+          if (pressed) await changeLanguage(pressed);
+        });
       });
     })();
 
@@ -599,7 +685,6 @@ They made shell crowns, then watched pink clouds.
       if (st.pitch) $("#pitch").value = st.pitch;
       if (st.enforceSeq !== undefined) $("#enforceSeq").checked = !!st.enforceSeq;
   if (st.hybridPhonics !== undefined) $("#hybridPhonics").checked = !!st.hybridPhonics;
-      if (st.voice) $("#voiceSelect").value = st.voice;
       if (st.whisper) $("#whisperEnabled").checked = !!st.whisper;
       if (st.openaiTtsModel) $("#openaiTtsModel").value = st.openaiTtsModel;
       if (st.openaiTtsVoice) $("#openaiTtsVoice").value = st.openaiTtsVoice;
@@ -651,7 +736,7 @@ They made shell crowns, then watched pink clouds.
     $("#btnGenerateGPT").addEventListener("click", async () => {
       const key = $("#apiKey").value.trim(); if (!key) return setError("Enter API key.");
       const prompt = ($("#prompt").value.trim() || "Write a simple 150 word story for a young child.");
-      const mode = $("#mode").value, age = $("#age").value, level = $("#level").value, lang = $("#langSelect").value || "en";
+      const mode = $("#mode").value, age = $("#age").value, level = $("#level").value, lang = state.lang || "en";
       const guidance = mode === "age" ? `Target age ${age}. Short sentences. Simple vocabulary.` : `Reading level ${level}. Short sentences. Simple vocabulary.`;
       const langNote = lang === "fr" ? "Write in French." : "Write in English.";
       try {
@@ -692,12 +777,6 @@ They made shell crowns, then watched pink clouds.
     $("#rate").addEventListener("input", saveSettings);
     $("#pitch").addEventListener("input", saveSettings);
     $("#enforceSeq").addEventListener("change", saveSettings);
-    $("#voiceSelect").addEventListener("change", () => {
-      const vi = parseInt($("#voiceSelect").value || "-1", 10);
-      state.lockedVoice = (!isNaN(vi) && state.voices[vi]) ? state.voices[vi] : null;
-      saveSettings();
-    });
-
     window.addEventListener("keydown", e => {
       if ($("#reader").style.display !== "block") return;
       if (e.code === "Space") { e.preventDefault(); advanceWithCheck(); }
@@ -705,22 +784,14 @@ They made shell crowns, then watched pink clouds.
       if (e.code === "ArrowLeft") { e.preventDefault(); manualStep(-1); }
     });
 
-    // voices (lock chosen voice)
+    // voices (auto-pick based on language)
     function populateVoices() {
       if (!("speechSynthesis" in window)) return;
-      const sel = $("#voiceSelect"); sel.innerHTML = "";
       const voices = speechSynthesis.getVoices().filter(v => v.lang);
+      if (!voices.length) return;
       state.voices = voices;
-      voices.forEach((v, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = `${v.name} - ${v.lang}`; sel.appendChild(o); });
-      if (!state.lockedVoice) {
-        const preferred = (state.lang === "fr" ? "fr" : "en");
-        const m = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(preferred));
-        state.lockedVoice = m || voices[0] || null;
-        if (state.lockedVoice) {
-          const idx = voices.indexOf(state.lockedVoice);
-          if (idx >= 0) $("#voiceSelect").value = String(idx);
-        }
-      }
+      const chosen = findPreferredVoice(state.lang, voices);
+      if (chosen) state.lockedVoice = chosen;
     }
     if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = populateVoices; populateVoices(); }
 
@@ -893,15 +964,27 @@ They made shell crowns, then watched pink clouds.
 
       // Colored phonics digraphs/trigraphs (now supports dynamic soundGroups -> consistent colors per phoneme)
       const colorPlan = new Array(chars.length).fill(null);
-      let patterns = [];
+      const patterns = [];
       if (rules?.colored) {
-        patterns = rules.colored.slice();
-      } else if (rules?.soundGroups) {
-        // Generate stable color classes ph1..phN per sound key order.
-        const keys = Object.keys(rules.soundGroups);
-        keys.forEach((sound, idx) => {
-          const cls = `ph${(idx % 12) + 1}`; // allow up to 12 colors before cycling (can expand CSS if needed)
-          (rules.soundGroups[sound] || []).forEach(gr => { patterns.push({ match: gr.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(), cls }); });
+        patterns.push(...rules.colored);
+      }
+      if (rules?.soundGroups) {
+        const palette = rules.soundPalette || {};
+        const fallback = new Map();
+        let fallbackIdx = 0;
+        Object.entries(rules.soundGroups).forEach(([sound, spellings]) => {
+          if (!Array.isArray(spellings)) return;
+          const assigned = palette[sound];
+          if (!assigned && !fallback.has(sound)) {
+            fallback.set(sound, `ph${(fallbackIdx % 12) + 1}`);
+            fallbackIdx++;
+          }
+          const cls = assigned || fallback.get(sound);
+          spellings.forEach((gr) => {
+            if (!gr) return;
+            const norm = gr.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            patterns.push({ match: norm, cls });
+          });
         });
       }
       patterns.sort((a,b)=> b.match.length - a.match.length);
@@ -1113,8 +1196,7 @@ They made shell crowns, then watched pink clouds.
         rate: $("#rate").value,
         pitch: $("#pitch").value,
         enforceSeq: $("#enforceSeq").checked,
-  hybridPhonics: $("#hybridPhonics").checked,
-        voice: $("#voiceSelect").value,
+        hybridPhonics: $("#hybridPhonics").checked,
         whisper: $("#whisperEnabled").checked,
         openaiTtsModel: $("#openaiTtsModel").value,
         openaiTtsVoice: $("#openaiTtsVoice").value,
