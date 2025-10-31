@@ -311,16 +311,13 @@
     transform: rotate(18deg);
   }
 
-  .mini-plant .mini-flower {
+  .mini-plant .mini-flower-canvas {
     position: absolute;
-    bottom: calc(18px + var(--mini-stem-height, 34px));
+    bottom: calc(20px + var(--mini-stem-height, 34px) - 6px);
     left: 50%;
-    transform: translate(-50%, 4px);
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--mini-flower, #d81b60);
-    box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
+    transform: translate(-50%, 0);
+    image-rendering: pixelated;
+    pointer-events: none;
   }
 
   .mini-plant .mini-pot {
@@ -540,6 +537,13 @@
       align-items: center
     }
 
+    .top-toggle-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .lang-toggle {
       display: inline-flex;
       align-items: center;
@@ -562,6 +566,12 @@
     .lang-toggle .lang-btn[aria-pressed="true"] {
       background: var(--accent);
       color: #fff;
+    }
+
+    .font-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     /* Only inside TTS Engine section */
@@ -692,9 +702,17 @@
         <button id="btnBuildReader" class="btn primary">🔧 Generate Reading Helper</button>
         <button id="btnStartOver" class="btn ghost sm">🔁 Start over</button>
         <button id="btnResetAll" class="btn danger sm">♻️ Reset all</button>
-        <div class="pill lang-toggle" id="langToggle" style="margin-left:auto" role="group" aria-label="Language">
-          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">English</button>
-          <button type="button" class="lang-btn" data-lang="fr" aria-pressed="false">Français</button>
+        <div class="top-toggle-group" style="margin-left:auto">
+          <div class="pill lang-toggle" id="langToggle" role="group" aria-label="Language">
+            <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">English</button>
+            <button type="button" class="lang-btn" data-lang="fr" aria-pressed="false">Français</button>
+          </div>
+          <label class="pill font-toggle">font
+            <select id="fontSelect">
+              <option value="sans">Clean sans</option>
+              <option value="cursive">Cursive</option>
+            </select>
+          </label>
         </div>
       </div>
       <div id="status" class="note" style="margin-top:6px"></div>
@@ -718,12 +736,6 @@
               <label class="pill">rate <input type="range" id="rate" min="0.6" max="1.4" step="0.05" value="1"></label>
               <label class="pill">pitch <input type="range" id="pitch" min="0.8" max="1.4" step="0.05"
                   value="1"></label>
-              <label class="pill">font
-                <select id="fontSelect">
-                  <option value="sans">Clean sans</option>
-                  <option value="cursive">Cursive</option>
-                </select>
-              </label>
             </div>
             <div class="hint" id="tapHint">Tip: tap or click to hear the next word</div>
           </div>
@@ -755,7 +767,9 @@
     plant: null,
     storySignature: "",
     readerFont: "sans",
-    lastProgressIndex: -1
+    lastProgressIndex: -1,
+    sentences: [],
+    sentenceEnds: []
   };
   const langButtons = () => Array.from(document.querySelectorAll("#langToggle .lang-btn"));
   const VOICE_PREFS = {
@@ -1018,7 +1032,10 @@ They made shell crowns, then watched pink clouds.
       localStorage.setItem(LS.story, text);
       const container = $("#readerText"); container.innerHTML = "";
       const paras = splitParagraphs(text);
-      const tokens = []; let globalIndex = 0;
+      const tokens = [];
+      const sentenceWordCounts = [];
+      const sentenceEnds = [];
+      let globalIndex = 0;
 
       paras.forEach((para, pi) => {
         if (!para.trim()) return;
@@ -1039,6 +1056,10 @@ They made shell crowns, then watched pink clouds.
             tokens.push({ display, speak });
             globalIndex++;
           });
+          if (words.length) {
+            sentenceWordCounts.push(words.length);
+            sentenceEnds.push(globalIndex - 1);
+          }
           if (si < sentences.length - 1) p.appendChild(document.createElement("br"));
         });
 
@@ -1046,11 +1067,13 @@ They made shell crowns, then watched pink clouds.
       });
 
   state.tokens = tokens;
+      state.sentences = sentenceWordCounts;
+      state.sentenceEnds = sentenceEnds;
       const savedIdx = parseInt(localStorage.getItem(LS.idx) || "0", 10);
       state.index = keepIndex ? clamp(savedIdx, 0, state.tokens.length - 1) : (isNaN(savedIdx) ? 0 : clamp(savedIdx, 0, state.tokens.length - 1));
       updateHighlight();
       state.storySignature = computeStorySignature(text);
-      initPlantRibbon(state.storySignature, tokens.length);
+      initPlantRibbon(state.storySignature, sentenceWordCounts);
 
       container.onclick = (e) => {
         const enforce = $("#enforceSeq").checked;
@@ -1426,7 +1449,7 @@ They made shell crowns, then watched pink clouds.
     // preload voices early
     if ("speechSynthesis" in window) { speechSynthesis.onvoiceschanged = populateVoices; populateVoices(); }
 
-    // ---------------- Plant ribbon (word-based growth + shelf) ----------------
+    // ---------------- Plant ribbon (sentence-based growth + shelf) ----------------
     const PLANT_COLORS = {
       stem: "#2e7d32",
       leaf: "#388e3c",
@@ -1436,7 +1459,14 @@ They made shell crowns, then watched pink clouds.
       bud: "#94a3b8",
       flowers: ["#d81b60", "#8e24aa", "#1e88e5", "#43a047", "#fb8c00", "#e53935", "#3949ab"]
     };
-    const PLANT_LIMITS = { minTarget: 12, maxTarget: 60, maxShelf: 18 };
+
+    const FLOWER_SHAPES = [
+      { size: 3, offsets: [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] },
+      { size: 5, offsets: [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]] },
+      { size: 5, offsets: [[0, 0], [0, 1], [0, -1], [0, 2], [0, -2], [1, 0], [-1, 0], [2, 0], [-2, 0]] },
+      { size: 5, offsets: [[0, 0], [1, 0], [-1, 0], [2, 0], [-2, 0], [0, 1], [0, -1], [1, 2], [-1, 2], [1, -2], [-1, -2]] }
+    ];
+    const PLANT_LIMITS = { maxShelf: 18 };
 
     function clampColorIdx(idx) {
       const total = PLANT_COLORS.flowers.length || 1;
@@ -1444,62 +1474,61 @@ They made shell crowns, then watched pink clouds.
       return ((base % total) + total) % total;
     }
 
-    function computeInitialTarget(wordCount = 0) {
-      const base = Math.round((wordCount || 0) / 6);
-      const fallback = wordCount > 0 ? Math.round(wordCount / 8) : 18;
-      return Math.max(PLANT_LIMITS.minTarget, Math.min(PLANT_LIMITS.maxTarget, base || fallback || 18));
+    function computeSentencesKey(sentences) {
+      return Array.isArray(sentences) ? sentences.join(";") : "";
     }
 
-    function computeNextTarget(currentTarget) {
-      const current = currentTarget || PLANT_LIMITS.minTarget;
-      const next = Math.round(current + Math.max(2, current * 0.15));
-      return Math.max(PLANT_LIMITS.minTarget, Math.min(PLANT_LIMITS.maxTarget, next));
-    }
-
-    function defaultPlantState(signature, wordCount = 0) {
+    function defaultPlantState(signature, sentences = []) {
+      const key = computeSentencesKey(sentences);
       return {
         storyKey: signature || "",
+        sentencesKey: key,
+        sentenceIdx: 0,
         progress: 0,
-        target: computeInitialTarget(wordCount),
-        blooms: 0,
-        colorIdx: 0,
+        target: Math.max(1, sentences[0] || 1),
         completed: [],
-        wordsSeen: 0
+        colorIdx: 0,
+        shapeSeed: Math.floor(Math.random() * FLOWER_SHAPES.length),
+        wordsSeen: 0,
+        pendingBloom: false,
+        sentences: sentences.slice()
       };
     }
 
-    function normalizeCompleted(entry) {
-      if (entry == null) return null;
-      if (typeof entry === "number") {
-        return { colorIdx: clampColorIdx(entry), stem: 34, leavesOpacity: 1 };
-      }
-      if (typeof entry === "object") {
-        const colorIdx = clampColorIdx(Number(entry.colorIdx) || 0);
-        const stem = Math.max(20, Math.min(60, Number(entry.stem) || 34));
-        const leavesOpacity = entry.leavesOpacity != null
-          ? Math.max(0, Math.min(1, Number(entry.leavesOpacity)))
-          : 1;
-        return { colorIdx, stem, leavesOpacity };
-      }
-      return null;
+    function normalizeSnapshot(entry) {
+      if (!entry || typeof entry !== "object") return null;
+      const base = {
+        colorIdx: clampColorIdx(entry.colorIdx ?? 0),
+        shapeIdx: entry.shapeIdx ?? 0,
+        stem: Math.max(20, Math.min(60, Number(entry.stem) || 34)),
+        leavesOpacity: entry.leavesOpacity != null ? Math.max(0, Math.min(1, Number(entry.leavesOpacity))) : 1,
+        sprite: entry.sprite && entry.sprite.url ? entry.sprite : null
+      };
+      if (!base.sprite) base.sprite = createFlowerSprite(base.shapeIdx, base.colorIdx);
+      return base;
     }
 
-    function getPlantState(signature, wordCount = 0) {
-      const def = defaultPlantState(signature, wordCount);
+    function getPlantState(signature, sentences = []) {
+      const def = defaultPlantState(signature, sentences);
       try {
         const raw = JSON.parse(localStorage.getItem(LS.plant) || "{}");
-        if (!raw || typeof raw !== "object" || raw.storyKey !== signature) return def;
+        if (!raw || typeof raw !== "object") return def;
+        if (raw.storyKey !== signature || raw.sentencesKey !== computeSentencesKey(sentences)) return def;
         const completed = Array.isArray(raw.completed)
-          ? raw.completed.map(normalizeCompleted).filter(Boolean).slice(-PLANT_LIMITS.maxShelf)
+          ? raw.completed.map(normalizeSnapshot).filter(Boolean).slice(-PLANT_LIMITS.maxShelf)
           : [];
         return {
           storyKey: signature,
+          sentencesKey: raw.sentencesKey,
+          sentenceIdx: Math.max(0, Number(raw.sentenceIdx) || 0),
           progress: Math.max(0, Number(raw.progress) || 0),
-          target: Math.max(PLANT_LIMITS.minTarget, Math.min(PLANT_LIMITS.maxTarget, Number(raw.target) || computeInitialTarget(wordCount))),
-          blooms: Math.max(0, Number(raw.blooms) || 0),
-          colorIdx: clampColorIdx(raw.colorIdx),
+          target: Math.max(1, Number(raw.target) || 1),
           completed,
-          wordsSeen: Math.max(0, Number(raw.wordsSeen) || 0)
+          colorIdx: clampColorIdx(raw.colorIdx),
+          shapeSeed: Number.isFinite(raw.shapeSeed) ? raw.shapeSeed : def.shapeSeed,
+          wordsSeen: Math.max(0, Number(raw.wordsSeen) || 0),
+          pendingBloom: false,
+          sentences: sentences.slice()
         };
       } catch {
         return def;
@@ -1508,15 +1537,33 @@ They made shell crowns, then watched pink clouds.
 
     function savePlantState() {
       if (!state.plant) return;
-      localStorage.setItem(LS.plant, JSON.stringify(state.plant));
+      localStorage.setItem(LS.plant, JSON.stringify({
+        storyKey: state.plant.storyKey,
+        sentencesKey: state.plant.sentencesKey,
+        sentenceIdx: state.plant.sentenceIdx,
+        progress: state.plant.progress,
+        target: state.plant.target,
+        completed: state.plant.completed,
+        colorIdx: state.plant.colorIdx,
+        shapeSeed: state.plant.shapeSeed,
+        wordsSeen: state.plant.wordsSeen
+      }));
     }
 
-    function initPlantRibbon(signature, wordCount = 0) {
-      state.plant = getPlantState(signature, wordCount);
-      if (state.plant.storyKey !== signature) {
-        state.plant = defaultPlantState(signature, wordCount);
+    function initPlantRibbon(signature, sentences = []) {
+      state.plant = getPlantState(signature, sentences);
+      state.plant.sentences = sentences.slice();
+      const key = computeSentencesKey(sentences);
+      if (!state.plant || state.plant.storyKey !== signature || state.plant.sentencesKey !== key) {
+        state.plant = defaultPlantState(signature, sentences);
       }
-      if (!state.plant.target) state.plant.target = computeInitialTarget(wordCount);
+      state.plant.sentencesKey = key;
+      if (state.plant.sentenceIdx >= sentences.length) {
+        state.plant.sentenceIdx = sentences.length;
+        state.plant.progress = 0;
+      }
+      state.plant.target = Math.max(1, sentences[state.plant.sentenceIdx] || 1);
+      state.plant.progress = Math.min(state.plant.progress || 0, state.plant.target);
       state.lastProgressIndex = Math.max(-1, (state.plant.wordsSeen || 0) - 1);
       resizePlantCanvas();
       updateFlowerShelf();
@@ -1524,36 +1571,53 @@ They made shell crowns, then watched pink clouds.
       savePlantState();
     }
 
-    function makeMiniSnapshot(colorIdx, target) {
-      const stem = Math.round(26 + Math.min(26, (target || 20) * 0.55));
-      const leavesOpacity = target >= 28 ? 1 : 0.6;
-      return { colorIdx: clampColorIdx(colorIdx), stem, leavesOpacity };
+    function getCurrentShapeIdx() {
+      if (!state.plant) return 0;
+      return (state.plant.shapeSeed + state.plant.completed.length) % FLOWER_SHAPES.length;
     }
 
-    function updateFlowerShelf(popIndex = -1) {
-      const shelf = document.getElementById("flowerShelf");
-      if (!shelf) return;
-      shelf.innerHTML = "";
-      const completed = Array.isArray(state.plant?.completed) ? state.plant.completed : [];
-      completed.forEach((snap, idx) => {
-        const colorIdx = clampColorIdx(snap?.colorIdx ?? 0);
-        const stem = Math.max(20, Math.min(60, snap?.stem ?? 34));
-        const leavesOpacity = snap?.leavesOpacity != null ? Math.max(0, Math.min(1, snap.leavesOpacity)) : 1;
-        const el = document.createElement("div");
-        el.className = "mini-plant";
-        el.style.setProperty("--mini-stem", PLANT_COLORS.stem);
-        el.style.setProperty("--mini-leaf", PLANT_COLORS.leaf);
-        el.style.setProperty("--mini-flower", PLANT_COLORS.flowers[colorIdx] || PLANT_COLORS.flowers[0]);
-        el.style.setProperty("--mini-stem-height", `${stem}px`);
-        el.style.setProperty("--mini-leaf-opacity", `${leavesOpacity}`);
-        el.innerHTML = `<span class="mini-stem"></span><span class="mini-flower"></span><span class="mini-leaf left"></span><span class="mini-leaf right"></span><span class="mini-pot"></span>`;
-        if (idx === popIndex) {
-          el.classList.add("pop");
-          addSparkles(el);
-          setTimeout(() => el.classList.remove("pop"), 700);
-        }
-        shelf.appendChild(el);
+    function drawShapePixels(ctx, centerX, centerY, cell, shapeIdx, color) {
+      const shape = FLOWER_SHAPES[shapeIdx % FLOWER_SHAPES.length];
+      ctx.fillStyle = color;
+      shape.offsets.forEach(([dx, dy]) => {
+        const x = centerX + dx * cell;
+        const y = centerY - dy * cell;
+        ctx.fillRect(x, y, cell, cell);
       });
+      ctx.fillStyle = PLANT_COLORS.center;
+      ctx.fillRect(centerX, centerY, cell, cell);
+    }
+
+    function createFlowerSprite(shapeIdx, colorIdx) {
+      const shape = FLOWER_SHAPES[shapeIdx % FLOWER_SHAPES.length];
+      const canvas = document.createElement("canvas");
+      canvas.width = shape.size;
+      canvas.height = shape.size;
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      const color = PLANT_COLORS.flowers[colorIdx] || PLANT_COLORS.flowers[0];
+      const center = Math.floor(shape.size / 2);
+      ctx.fillStyle = color;
+      shape.offsets.forEach(([dx, dy]) => {
+        const tx = center + dx;
+        const ty = center - dy;
+        ctx.fillRect(tx, ty, 1, 1);
+      });
+      ctx.fillStyle = PLANT_COLORS.center;
+      ctx.fillRect(center, center, 1, 1);
+      return { url: canvas.toDataURL("image/png"), size: shape.size };
+    }
+
+    function makeMiniSnapshot(colorIdx, shapeIdx, target) {
+      const stem = Math.round(22 + Math.min(32, (target || 1) * 1.1));
+      const leavesOpacity = target >= 6 ? 1 : 0.72;
+      return {
+        colorIdx: clampColorIdx(colorIdx),
+        shapeIdx,
+        stem,
+        leavesOpacity,
+        sprite: createFlowerSprite(shapeIdx, colorIdx)
+      };
     }
 
     function addSparkles(el) {
@@ -1572,49 +1636,119 @@ They made shell crowns, then watched pink clouds.
       });
     }
 
-    function plantBloom(forceComplete = false) {
+    function updateFlowerShelf(popIndex = -1) {
+      const shelf = document.getElementById("flowerShelf");
+      if (!shelf) return;
+      shelf.innerHTML = "";
+      const completed = Array.isArray(state.plant?.completed) ? state.plant.completed : [];
+      completed.forEach((snap, idx) => {
+        const info = normalizeSnapshot(snap);
+        if (!info) return;
+        const el = document.createElement("div");
+        el.className = "mini-plant";
+        el.style.setProperty("--mini-stem", PLANT_COLORS.stem);
+        el.style.setProperty("--mini-leaf", PLANT_COLORS.leaf);
+        el.style.setProperty("--mini-stem-height", `${info.stem}px`);
+        el.style.setProperty("--mini-leaf-opacity", `${info.leavesOpacity}`);
+
+        const stem = document.createElement("span");
+        stem.className = "mini-stem";
+        const leafL = document.createElement("span");
+        leafL.className = "mini-leaf left";
+        const leafR = document.createElement("span");
+        leafR.className = "mini-leaf right";
+        const pot = document.createElement("span");
+        pot.className = "mini-pot";
+        const img = document.createElement("img");
+        img.className = "mini-flower-canvas";
+        if (info.sprite?.url) {
+          img.src = info.sprite.url;
+          img.width = info.sprite.size;
+          img.height = info.sprite.size;
+          const scale = Math.max(18, info.sprite.size * 4);
+          img.style.width = `${scale}px`;
+          img.style.height = `${scale}px`;
+        }
+        el.append(stem, leafL, leafR, img, pot);
+
+        if (idx === popIndex) {
+          el.classList.add("pop");
+          addSparkles(el);
+          setTimeout(() => el.classList.remove("pop"), 700);
+        }
+        shelf.appendChild(el);
+      });
+    }
+
+    function finalizeBloom() {
       if (!state.plant) return;
+      const shapeIdx = getCurrentShapeIdx();
       const colorIdx = clampColorIdx(state.plant.colorIdx);
-      const snapshot = makeMiniSnapshot(colorIdx, state.plant.target);
+      const snapshot = makeMiniSnapshot(colorIdx, shapeIdx, state.plant.target);
       state.plant.completed = Array.isArray(state.plant.completed) ? state.plant.completed : [];
       state.plant.completed.push(snapshot);
       if (state.plant.completed.length > PLANT_LIMITS.maxShelf) state.plant.completed = state.plant.completed.slice(-PLANT_LIMITS.maxShelf);
-      state.plant.blooms = (state.plant.blooms || 0) + 1;
-      state.plant.progress = 0;
       state.plant.colorIdx = clampColorIdx(colorIdx + 1);
-      state.plant.target = computeNextTarget(state.plant.target);
-      savePlantState();
       updateFlowerShelf(state.plant.completed.length - 1);
+    }
+
+    function advanceSentence() {
+      if (!state.plant) return;
+      const sentences = state.plant.sentences || [];
+      state.plant.sentenceIdx += 1;
+      state.plant.progress = 0;
+      state.plant.target = Math.max(1, sentences[state.plant.sentenceIdx] || 1);
+      state.plant.pendingBloom = false;
+      const prevEnd = state.sentenceEnds?.[state.plant.sentenceIdx - 1];
+      if (prevEnd != null) {
+        state.plant.wordsSeen = Math.max(state.plant.wordsSeen || 0, prevEnd + 1);
+      } else {
+        state.plant.wordsSeen = Math.max(state.plant.wordsSeen || 0, state.lastProgressIndex + 1);
+      }
+      savePlantState();
       drawPlantRibbon();
     }
 
-    function ensurePlantComplete() {
+    function ensureFinalBloom() {
       if (!state.plant) return;
-      if (state.plant.progress === 0) {
-        savePlantState();
-        return;
-      }
-      plantBloom(true);
+      if (state.plant.sentenceIdx >= (state.plant.sentences?.length || 0)) return;
+      finalizeBloom();
+      state.plant.sentenceIdx = state.plant.sentences.length;
+      state.plant.progress = 0;
+      state.plant.target = 1;
+      state.plant.pendingBloom = false;
+      state.plant.wordsSeen = state.tokens.length;
+      savePlantState();
+      drawPlantRibbon();
     }
 
     function recordWordProgress(wordIdx) {
       if (!state.plant || !state.tokens.length) return;
       if (wordIdx == null || wordIdx < 0) return;
-      if (wordIdx <= state.lastProgressIndex) {
-        if (wordIdx >= state.tokens.length - 1) ensurePlantComplete();
+      if (wordIdx <= state.lastProgressIndex || state.plant.pendingBloom) {
+        if (wordIdx >= state.tokens.length - 1) ensureFinalBloom();
         return;
       }
       state.lastProgressIndex = wordIdx;
       state.plant.wordsSeen = Math.max(state.plant.wordsSeen || 0, wordIdx + 1);
       state.plant.progress = Math.max(0, (state.plant.progress || 0) + 1);
-      if (state.plant.progress >= state.plant.target) {
-        plantBloom();
+      drawPlantRibbon();
+
+      const currentEnd = state.sentenceEnds?.[state.plant.sentenceIdx] ?? (state.tokens.length - 1);
+      if (wordIdx >= currentEnd) {
+        state.plant.pendingBloom = true;
+        state.plant.progress = Math.max(1, state.plant.target);
+        state.plant.wordsSeen = Math.max(state.plant.wordsSeen || 0, currentEnd + 1);
+        drawPlantRibbon();
+        setTimeout(() => {
+          finalizeBloom();
+          advanceSentence();
+        }, 140);
       } else {
         savePlantState();
-        drawPlantRibbon();
       }
       if (wordIdx >= state.tokens.length - 1) {
-        ensurePlantComplete();
+        setTimeout(() => ensureFinalBloom(), 200);
       }
     }
 
@@ -1637,11 +1771,11 @@ They made shell crowns, then watched pink clouds.
 
       if (!state.plant) return;
 
-      const target = Math.max(PLANT_LIMITS.minTarget, state.plant.target || PLANT_LIMITS.minTarget);
+      const target = Math.max(1, state.plant.target || 1);
       const progress = Math.max(0, Math.min(state.plant.progress || 0, target));
       const ratio = target ? Math.min(1, progress / target) : 0;
-      const maxSegments = 12 + Math.round(target * 0.7);
-      let filledSegments = Math.max(0, Math.round(maxSegments * ratio));
+      const maxSegments = Math.max(4, 6 + target);
+      let filledSegments = Math.round(maxSegments * ratio);
       if (ratio > 0 && filledSegments === 0) filledSegments = 1;
 
       ctx.fillStyle = PLANT_COLORS.stem;
@@ -1665,14 +1799,7 @@ They made shell crowns, then watched pink clouds.
 
       if (ratio >= 1 && filledSegments > 0) {
         const centerY = stemBaseY - filledSegments * cell - cell;
-        ctx.fillStyle = PLANT_COLORS.center;
-        ctx.fillRect(centerX, centerY, cell, cell);
-        ctx.fillStyle = flowerColor;
-        const petals = [
-          [-cell, 0], [cell, 0], [0, -cell], [0, cell],
-          [-cell, -cell], [cell, -cell], [-cell, cell], [cell, cell]
-        ];
-        petals.forEach(([dx, dy]) => ctx.fillRect(centerX + dx, centerY + dy, cell, cell));
+        drawShapePixels(ctx, centerX, centerY, cell, getCurrentShapeIdx(), flowerColor);
       } else if (filledSegments > 0) {
         const budY = stemBaseY - filledSegments * cell - cell;
         ctx.fillStyle = flowerColor;
