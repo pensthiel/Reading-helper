@@ -311,7 +311,7 @@
     transform: rotate(18deg);
   }
 
-  .mini-plant .mini-flower-canvas {
+  .mini-plant .mini-plant-sprite {
     position: absolute;
     bottom: calc(20px + var(--mini-stem-height, 34px) - 6px);
     left: 50%;
@@ -350,6 +350,17 @@
 
   .mini-plant.pop {
     animation: mini-pop 0.6s ease-out;
+  }
+
+  .mini-plant.has-sprite .mini-stem,
+  .mini-plant.has-sprite .mini-leaf,
+  .mini-plant.has-sprite .mini-pot {
+    display: none;
+  }
+
+  .mini-plant.has-sprite .mini-plant-sprite {
+    bottom: 0;
+    transform: translate(-50%, 0);
   }
 
   @keyframes mini-pop {
@@ -1502,7 +1513,8 @@ They made shell crowns, then watched pink clouds.
         shapeIdx: entry.shapeIdx ?? 0,
         stem: Math.max(20, Math.min(60, Number(entry.stem) || 34)),
         leavesOpacity: entry.leavesOpacity != null ? Math.max(0, Math.min(1, Number(entry.leavesOpacity))) : 1,
-        sprite: entry.sprite && entry.sprite.url ? entry.sprite : null
+        sprite: entry.sprite && entry.sprite.url ? entry.sprite : null,
+        spriteFull: entry.spriteFull && entry.spriteFull.url ? entry.spriteFull : null
       };
       if (!base.sprite) base.sprite = createFlowerSprite(base.shapeIdx, base.colorIdx);
       return base;
@@ -1603,22 +1615,51 @@ They made shell crowns, then watched pink clouds.
         const ty = center - dy;
         ctx.fillRect(tx, ty, 1, 1);
       });
-      ctx.fillStyle = PLANT_COLORS.center;
-      ctx.fillRect(center, center, 1, 1);
-      return { url: canvas.toDataURL("image/png"), size: shape.size };
-    }
+    ctx.fillStyle = PLANT_COLORS.center;
+    ctx.fillRect(center, center, 1, 1);
+    return { url: canvas.toDataURL("image/png"), size: shape.size };
+  }
 
-    function makeMiniSnapshot(colorIdx, shapeIdx, target) {
-      const stem = Math.round(22 + Math.min(32, (target || 1) * 1.1));
-      const leavesOpacity = target >= 6 ? 1 : 0.72;
-      return {
-        colorIdx: clampColorIdx(colorIdx),
-        shapeIdx,
-        stem,
-        leavesOpacity,
-        sprite: createFlowerSprite(shapeIdx, colorIdx)
-      };
-    }
+  function capturePlantSnapshot() {
+    const canvas = document.getElementById('plantCanvas');
+    if (!canvas) return null;
+    const dpr = window.devicePixelRatio || 1;
+    const cropWidth = Math.min(canvas.width, Math.round(60 * dpr));
+    const cropHeight = Math.min(canvas.height, Math.round(120 * dpr));
+    const sx = Math.max(0, Math.round(canvas.width / 2 - cropWidth / 2));
+    const sy = Math.max(0, canvas.height - cropHeight);
+    const off = document.createElement('canvas');
+    off.width = cropWidth;
+    off.height = cropHeight;
+    const ctx = off.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(canvas, sx, sy, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+    const potHeight = Math.round(14 * dpr);
+    const potWidth = Math.min(cropWidth - Math.round(6 * dpr), Math.round(32 * dpr));
+    const potX = Math.round((cropWidth - potWidth) / 2);
+    const potY = cropHeight - potHeight;
+    ctx.fillStyle = "#c26a2b";
+    ctx.fillRect(potX, potY, potWidth, potHeight);
+    ctx.fillStyle = "#a24f1b";
+    ctx.fillRect(potX, potY + potHeight - Math.round(5 * dpr), potWidth, Math.round(5 * dpr));
+    ctx.fillStyle = "rgba(59,47,38,0.55)";
+    ctx.fillRect(potX + Math.round(3 * dpr), potY - Math.round(5 * dpr), potWidth - Math.round(6 * dpr), Math.round(6 * dpr));
+    return { url: off.toDataURL("image/png"), width: cropWidth, height: cropHeight };
+  }
+
+  function makeMiniSnapshot(colorIdx, shapeIdx, target) {
+    const stem = Math.round(22 + Math.min(32, (target || 1) * 1.1));
+    const leavesOpacity = target >= 6 ? 1 : 0.72;
+    const spriteFull = capturePlantSnapshot();
+    return {
+      colorIdx: clampColorIdx(colorIdx),
+      shapeIdx,
+      stem,
+      leavesOpacity,
+      sprite: createFlowerSprite(shapeIdx, colorIdx),
+      spriteFull: spriteFull || null
+    };
+  }
 
     function addSparkles(el) {
       const offsets = [
@@ -1659,17 +1700,31 @@ They made shell crowns, then watched pink clouds.
         leafR.className = "mini-leaf right";
         const pot = document.createElement("span");
         pot.className = "mini-pot";
-        const img = document.createElement("img");
-        img.className = "mini-flower-canvas";
-        if (info.sprite?.url) {
-          img.src = info.sprite.url;
-          img.width = info.sprite.size;
-          img.height = info.sprite.size;
-          const scale = Math.max(18, info.sprite.size * 4);
-          img.style.width = `${scale}px`;
-          img.style.height = `${scale}px`;
+        if (info.spriteFull?.url) {
+          el.classList.add("has-sprite");
+          const img = document.createElement("img");
+          img.className = "mini-plant-sprite";
+          img.src = info.spriteFull.url;
+          img.alt = "Completed plant";
+          img.width = info.spriteFull.width || 46;
+          img.height = info.spriteFull.height || 72;
+          img.style.width = "46px";
+          img.style.height = "auto";
+          el.appendChild(img);
+        } else {
+          const img = document.createElement("img");
+          img.className = "mini-plant-sprite";
+          img.alt = "Completed flower";
+          if (info.sprite?.url) {
+            img.src = info.sprite.url;
+            img.width = info.sprite.size;
+            img.height = info.sprite.size;
+            const scale = Math.max(18, info.sprite.size * 4);
+            img.style.width = `${scale}px`;
+            img.style.height = `${scale}px`;
+          }
+          el.append(stem, leafL, leafR, img, pot);
         }
-        el.append(stem, leafL, leafR, img, pot);
 
         if (idx === popIndex) {
           el.classList.add("pop");
